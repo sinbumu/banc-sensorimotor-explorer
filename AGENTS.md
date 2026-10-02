@@ -25,7 +25,11 @@ Before making non-trivial changes:
 7. Do not commit raw BANC datasets, generated caches, credentials, or large binary exports.
 8. Run relevant tests before declaring a phase complete.
 9. Keep scientific claims conservative: this project visualizes graph-theoretic paths over a connectome; it does **not** claim to simulate biological neural dynamics.
-10. Never push, force-push, rewrite history, delete remote branches, or publish releases unless the user explicitly asks.
+10. The user explicitly authorized normal commits and pushes at each completed
+    phase on 2026-10-02. Audit exclusions/secrets and run relevant checks first,
+    then commit/push to the existing upstream and continue the next phase.
+    Force-push, history rewriting, remote branch deletion and publishing releases
+    still require separate explicit instructions.
 
 If later instructions from the user conflict with this document, the user's latest explicit instruction wins. Update this document when a long-lived architectural decision changes.
 
@@ -138,7 +142,7 @@ banc_888_synapses_v3_enriched.parquet
 banc_888_neurotransmitter_prediction_v2.csv
 ```
 
-Morphology assets live at the bucket root rather than under `compiled_data`:
+Historical morphology assets live at the bucket root:
 
 ```text
 neuron_skeletons/swcs-from-pcg-skel/
@@ -146,6 +150,12 @@ neuron_skeletons.zip
 neuron_meshes/
 region_outlines/
 ```
+
+Verified during Phase 2 (2026-10-02): current v888 full skeletons are also available
+at `compiled_data/banc_888/banc_banc_space_swc/<BANC_ID>_skeleton.swc` in nanometers.
+Use this versioned source for scene exports. The legacy `swcs-from-pcg-skel`
+sample used micrometers and did not contain the demo motor's v888 ID. Do not
+silently fall back to legacy IDs/units; see `docs/morphology.md` for evidence.
 
 Approximate sizes can change and must not be treated as schema invariants. At the time this document was prepared:
 
@@ -716,8 +726,12 @@ For many-source/many-target queries, use an efficient multi-source/multi-target 
 Default morphology source:
 
 ```text
-neuron_skeletons/swcs-from-pcg-skel/<BANC_ID>.swc
+compiled_data/banc_888/banc_banc_space_swc/<BANC_ID>_skeleton.swc
 ```
+
+This source uses nm; SWC is not universally nm. The parser must require explicit
+source units and normalize them to nm internally. Missing v888 morphology must
+produce an actionable error, not an automatic older-materialization substitution.
 
 Fetch only selected path neurons unless the user explicitly requests the full skeleton archive.
 
@@ -1057,6 +1071,17 @@ Suggested `path.json`:
 
 Validate this contract with Pydantic before writing.
 
+Implementation decision (2026-10-02): serialize neuron IDs as decimal strings in
+JSON, including edge endpoints and manifest ID lists. Keep exact integer IDs in
+Python. The numeric IDs in the illustrative example above must not be parsed
+through floating-point JSON values: real BANC IDs exceed JavaScript's exact integer
+range. Phase 1 exports `artifact_type: "graph_path"` with `schema_version: 1`;
+this graph-only result is not yet a morphology-bearing Godot scene contract.
+
+Normalized-strength costs use recomputed `count / post_count` with unfiltered
+source totals. Retain the public table's rounded value as `norm` and export the
+recomputed value as `normalized_input`, with epsilon and cost definition recorded.
+
 The Godot parser must reject unsupported schema versions with a clear message.
 
 ---
@@ -1358,7 +1383,15 @@ Do not:
 - amend unrelated commits;
 - commit datasets;
 - commit secrets;
-- push without user request.
+- push outside the phase-completion workflow authorized below.
+
+Standing user instruction (2026-10-02): after each phase, verify `.gitignore`,
+audit the exact staged files for data/caches/secrets, run relevant checks, then
+make a focused commit and normal push to the existing upstream. Continue the
+next phase after that checkpoint. Do not request the same authorization again.
+The first checkpoint captures the already completed Phases 0–3 together; do not
+invent a retroactive development history. A failed/non-fast-forward push must
+be diagnosed without force-pushing or discarding work.
 
 Keep commits focused if the user asks the agent to commit.
 
@@ -1624,22 +1657,26 @@ This is enough for a strong RKS demonstration.
 
 Do not call the project MVP complete until all of these are true:
 
-- [ ] BANC v888 source/version is explicit.
-- [ ] Core data bootstrap is reproducible.
-- [ ] No private credential is needed for core use.
-- [ ] Real sensory and motor neurons are selected from metadata.
-- [ ] Directed pathfinding works.
-- [ ] Minimum-hop and normalized-strength modes are distinct.
-- [ ] Every displayed edge has real BANC connectivity values.
-- [ ] Selected neurons use real BANC skeleton morphology.
-- [ ] Coordinate conversion is documented/tested.
-- [ ] Godot loads and renders a path.
-- [ ] Camera interaction works.
-- [ ] Illustrative path playback works.
-- [ ] Scientific caveats are visible in docs/UI.
-- [ ] Data/cache files are not tracked by Git.
-- [ ] Core Python tests pass.
-- [ ] README explains setup and demo.
+- [x] BANC v888 source/version is explicit.
+- [x] Core data bootstrap is reproducible.
+- [x] No private credential is needed for core use.
+- [x] Real sensory and motor neurons are selected from metadata.
+- [x] Directed pathfinding works.
+- [x] Minimum-hop and normalized-strength modes are distinct.
+- [x] Every displayed edge has real BANC connectivity values.
+- [x] Selected neurons use real BANC skeleton morphology.
+- [x] Coordinate conversion is documented/tested.
+- [x] Godot loads and renders a path.
+- [x] Camera interaction works.
+- [x] Illustrative path playback works.
+- [x] Scientific caveats are visible in docs/UI.
+- [x] Data/cache files are not tracked by Git.
+- [x] Core Python tests pass.
+- [x] README explains setup and demo.
+
+Verified 2026-10-02: file-based Phase 3 MVP, 78 Python/engine tests, real GPU
+rendering and automated camera/control smoke checks. See `docs/progress.md` and
+`docs/godot.md` for evidence and limitations. Integrated live selection is Phase 4.
 
 Raw EM is **not** required for MVP completion.
 

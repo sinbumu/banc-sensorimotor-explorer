@@ -1,0 +1,6 @@
+materialization = 888
+connectivity_version = "v3"
+cache_dir = ".cache/banc/v888"
+min_synapse_count = 5
+epsilon = 1e-12
+max_download_bytes = 1000000000

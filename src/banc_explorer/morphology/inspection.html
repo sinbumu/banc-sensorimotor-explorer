@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BANC · Skeleton inspection</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0c1521;color:#e3edf7;font:15px system-ui,sans-serif}
+header{padding:23px 30px;border-bottom:1px solid #2b3a4a;display:flex;justify-content:space-between;align-items:center;gap:20px}
+h1{margin:3px 0 0;font-size:23px;font-weight:600}small,.muted{color:#a8bbcc}small{font-size:12px;letter-spacing:1px}
+main{display:grid;grid-template-columns:minmax(0,1fr) 330px;height:calc(100vh - 100px);min-height:550px}
+.viewport{position:relative;overflow:hidden}canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+canvas:active{cursor:grabbing}.hint{position:absolute;bottom:22px;left:28px;color:#a8bbcc;font-size:13px;pointer-events:none}
+aside{padding:24px;background:#111e2c;border-left:1px solid #2b3a4a;overflow:auto}
+h2{margin:0 0 16px;font-size:17px}p{line-height:1.6;color:#a8bbcc;font-size:13px}
+.neuron{padding:15px 0;border-bottom:1px solid #2b3a4a}.name{display:block;margin-bottom:7px;overflow-wrap:anywhere;line-height:1.4}
+.id{display:block;font:11px ui-monospace,monospace;color:#a8bbcc;margin:6px 0}.detail{font-size:12px;color:#a8bbcc}
+label{cursor:pointer}input{margin:0 8px 0 0;accent-color:#63d5ca}
+button{background:#1d3448;color:#edf5fa;border:1px solid #43617a;border-radius:6px;padding:8px 14px;cursor:pointer}
+button:hover{background:#2c4c66}button:focus-visible,input:focus-visible{outline:2px solid #63d5ca;outline-offset:3px}
+.tag{font-size:12px;background:#172c3d;border:1px solid #345065;border-radius:18px;padding:6px 12px}
+#summary{font-size:13px;color:#b7c8d7;margin:18px 0}.error{color:#ffa69a}
+@media(max-width:800px){header{padding:16px}main{grid-template-columns:1fr;height:auto}.viewport{height:65vh;min-height:360px}aside{border-left:0;border-top:1px solid #2b3a4a}}
+</style>
+<header><div><small>BANC / MATERIALIZATION 888</small><h1>Reconstructed path morphology</h1></div><span class="tag">Phase 2 · Inspection</span></header>
+<main>
+<div class="viewport"><canvas id="view" role="img" aria-label="Rotatable 3D orthographic view of selected BANC neuron skeletons"></canvas><div class="hint">Drag to rotate · Scroll to zoom · Orthographic view</div></div>
+<aside><h2>Selected path neurons</h2><div id="neurons"></div><div id="summary"></div><button id="reset">Reset view</button><p id="scale"></p><p>Lines show SWC branches in a shared coordinate frame. Colors distinguish neurons; line width is illustrative.</p><p>This is a structural graph-theoretic path. No synapse positions or physiological signal propagation are shown.</p><p class="muted">Offline inspection aid · Godot viewer is a later phase.</p></aside>
+</main>
+<script id="scene-data" type="application/json">__SCENE_DATA__</script>
+<script>
+'use strict';
+const data=JSON.parse(document.getElementById('scene-data').textContent);
+const canvas=document.getElementById('view'), ctx=canvas.getContext('2d');
+const colors=['#59e1c5','#ffbf71','#a699ff','#ef94ca','#8cc9ff','#dfe58b'];
+const visible=data.neurons.map(()=>true);
+const total=data.neurons.reduce((n,v)=>n+v.points.length,0);
+data.neurons.forEach((n,i)=>{
+  const row=document.createElement('div');row.className='neuron';
+  const label=document.createElement('label');label.className='name';label.style.color=colors[i%colors.length];
+  const input=document.createElement('input');input.type='checkbox';input.checked=true;input.setAttribute('aria-label','Show '+n.label);
+  input.addEventListener('change',()=>{visible[i]=input.checked;draw()});
+  label.append(input,document.createTextNode((i+1)+'. '+n.label));
+  const id=document.createElement('span');id.className='id';id.textContent=n.id;
+  const detail=document.createElement('span');detail.className='detail';detail.textContent=n.class+' · '+n.points.length.toLocaleString()+' points';
+  row.append(label,id,detail);document.getElementById('neurons').append(row);
+});
+document.getElementById('summary').textContent=total.toLocaleString()+' points · connectivity '+data.version+' · '+data.mode;
+document.getElementById('scale').textContent='1 world unit = '+(data.scale/1000)+' µm. Display axes: X = BANC X, Y = −BANC Z, Z = BANC Y.';
+let radius=0;for(const n of data.neurons)for(const p of n.points)radius=Math.max(radius,Math.hypot(...p));radius=Math.max(radius,0.1);
+let yaw=-0.45,pitch=0.25,zoom=1,width=1,height=1,drag=null,queued=false;
+function project(p){const cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);const x=cy*p[0]+sy*p[2],z=-sy*p[0]+cy*p[2];return [x,cp*p[1]-sp*z]}
+function draw(){
+  ctx.clearRect(0,0,width,height);
+  const scale=Math.min(width,height)*0.42/radius*zoom;
+  ctx.lineWidth=0.6;ctx.strokeStyle='#203246';ctx.beginPath();
+  for(let x=width/2%60;x<width;x+=60){ctx.moveTo(x,0);ctx.lineTo(x,height)}
+  for(let y=height/2%60;y<height;y+=60){ctx.moveTo(0,y);ctx.lineTo(width,y)}ctx.stroke();
+  data.neurons.forEach((n,i)=>{
+    if(!visible[i])return;
+    const projected=n.points.map(p=>{const [x,y]=project(p);return [width/2+x*scale,height/2-y*scale]});
+    ctx.strokeStyle=colors[i%colors.length];ctx.lineWidth=1.1;ctx.globalAlpha=0.8;ctx.beginPath();
+    n.parents.forEach((parent,j)=>{if(parent!==null){ctx.moveTo(...projected[j]);ctx.lineTo(...projected[parent])}});ctx.stroke();
+    ctx.globalAlpha=1;ctx.fillStyle=colors[i%colors.length];
+    n.parents.forEach((parent,j)=>{if(parent===null){ctx.beginPath();ctx.arc(...projected[j],3,0,Math.PI*2);ctx.fill()}});
+  });
+  // Compass indicates display coordinates only; it does not assert anatomical axes.
+  ctx.font='12px system-ui';[[1,0,0,'X','#ef9b94'],[0,1,0,'Y','#82d7ab'],[0,0,1,'Z','#91b9fc']].forEach(a=>{
+    const p=project(a);ctx.strokeStyle=a[4];ctx.fillStyle=a[4];ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(55,65);ctx.lineTo(55+p[0]*30,65-p[1]*30);ctx.stroke();ctx.fillText(a[3],55+p[0]*39,69-p[1]*39);
+  });
+  canvas.dataset.rendered='true';
+}
+function schedule(){if(!queued){queued=true;requestAnimationFrame(()=>{queued=false;draw()})}}
+function resize(){const rect=canvas.getBoundingClientRect(),ratio=Math.min(devicePixelRatio||1,2);width=rect.width;height=rect.height;canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);ctx.setTransform(ratio,0,0,ratio,0,0);draw()}
+new ResizeObserver(resize).observe(canvas);
+canvas.addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY];canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointermove',e=>{if(!drag)return;yaw+=(e.clientX-drag[0])*0.008;pitch=Math.max(-1.55,Math.min(1.55,pitch+(e.clientY-drag[1])*0.008));drag=[e.clientX,e.clientY];schedule()});
+canvas.addEventListener('pointerup',()=>drag=null);canvas.addEventListener('pointercancel',()=>drag=null);
+canvas.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(0.1,Math.min(12,zoom*Math.exp(-e.deltaY*0.001)));schedule()},{passive:false});
+document.getElementById('reset').addEventListener('click',()=>{yaw=-0.45;pitch=0.25;zoom=1;draw()});
+resize();
+</script>
+</html>

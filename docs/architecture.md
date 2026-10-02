@@ -1,0 +1,59 @@
+# Architecture
+
+Phase 0 implements configuration -> public asset catalog -> bounded cache download
+-> PyArrow Feather read -> Polars normalization/validation -> Typer CLI.
+
+Pydantic validates configuration; receipts capture source provenance. Tests generate
+tiny synthetic Feather payloads in temporary directories and require no network.
+CI runs Python 3.11 and 3.12 on Windows and Linux. Full live data is excluded from CI.
+
+Phase 1 uses a directed python-igraph graph. IDs stay UInt64 in Polars, map to dense
+indices for igraph, and serialize as strings in JSON. Vertices and edges are sorted
+before construction; weights align with the sorted edge table. Dense NumPy buffers
+avoid allocating a Python dictionary for each of the millions of edges.
+
+Minimum-hop queries use unweighted outward shortest paths; normalized-strength
+queries use nonnegative weights and igraph's automatic shortest-path algorithm
+(Dijkstra for these weights). See the [igraph API](https://igraph.org/python/versions/latest/api/igraph.Graph.html).
+Equal-cost paths are not promised unique or identical across igraph versions;
+the manifest records the installed igraph version. Every result validates directed
+edge ordering, totals, threshold, cost formula and endpoint/exclusion consistency
+with Pydantic before writing. Output destinations are not overwritten.
+
+The session loads/validates sources once for a two-mode demo. Exclusion constructs
+a fresh graph and leaves cached edges and original input totals unchanged. No
+processed graph cache is introduced without evidence of a startup bottleneck.
+An observed full-cache `demo build` run took approximately 3.8 seconds on this
+machine; this is a single warm-local-file measurement, not a performance guarantee.
+
+Phase 2 adds a public v888 full-SWC provider, explicit units, forest validation,
+one common coordinate transform and versioned `skeleton_scene` bundles. A generic
+SWC parser supports nm/µm, but the default provider uses the verified nm export
+under `compiled_data/banc_888/banc_banc_space_swc/`. The legacy root-level source
+is not used because its IDs/units differ. This corrects the initial catalog brief
+using actual object/coordinate checks; details are in [morphology.md](morphology.md).
+
+Scene export has a 20 MB per-object limit and 100 MB aggregate source budget.
+It validates all files in a temporary sibling directory, then publishes the bundle
+to a new destination. File-based loading works without source caches or network.
+A dependency-free HTML inspection aid verifies morphology ahead of Godot work;
+it is not a second application architecture or a substitute for the planned viewer.
+
+Phase 3 is an offline Godot 4 viewer. A bounded GDScript loader verifies all bundle
+hashes and validates directed paths, costs, exact string IDs, coordinates and
+forest topology before replacing the active scene. One ArrayMesh per neuron
+batches all segments; isolated roots use point geometry. Godot uses the existing
+world coordinates directly. An orthographic orbit camera, screen-space picking,
+metadata/edge panel and timed illustrative highlighting form the static MVP.
+See [viewer setup and verification](godot.md). Python retains scientific computation;
+Godot owns display/control. API integration, synapse evidence and raw EM remain
+later phases.
+
+Windows export staging now uses a UUID-named sibling created with ordinary mkdir.
+TemporaryDirectory's owner-only Windows ACL made renamed bundles unreadable by
+the desktop user when built by a sandbox account. Inheriting the output parent's
+permissions fixes the cross-process workflow while preserving validate-before-rename
+publication and cleanup on failure.
+
+No global installation, hosted service or optional live-data dependency is needed.
+The workspace's `.tools` uv installation and `.venv` are ignored local tooling.
