@@ -1,6 +1,6 @@
 # Progress — 2026-10-02
 
-Phases 0–3 implemented and verified on Windows Python 3.12 and Godot 4.7.2.
+Phases 0–4 implemented and verified on Windows Python 3.12 and Godot 4.7.2.
 
 - Python package, uv lock, config/catalog, bounded download/cache receipts.
 - Offline validation of hashes, metadata schema, exact IDs, proofread flags,
@@ -86,14 +86,7 @@ Phase 3:
 - Downloaded only the official Godot 4.7.2 Windows x64 portable ZIP (86,013,866
   bytes) into ignored `.tools/godot/`. No commit/push performed.
 
-The file-based Phase 3 MVP is complete. Limitations: live source/target queries
-remain a CLI/export workflow; no CNS outline, meshes, synapse positions or EM view.
-v2 is covered by synthetic integration tests but not live-validated. The morphology
-provider has no automatic L2/legacy fallback. GitHub CI has not run and does not
-currently install Godot. Equal-cost ties can vary with igraph version.
-
-Next milestone: Phase 4 local source/target selection and path recalculation from
-the viewer, retaining the validated file contract and public static v888 baseline.
+The file-based Phase 3 MVP is complete; Phase 4 below adds integrated queries.
 
 Publication checkpoint (2026-10-02): user authorized commit/push after each phase.
 Expanded ignore rules for raw SWCs/archives, tool binaries, environment variants,
@@ -102,3 +95,43 @@ credentials and Godot build state, preserving the tiny attributed test fixtures.
 with a 2 MB per-file ceiling and high-confidence secret patterns. The completed
 Phases 0–3 form one initial implementation checkpoint; subsequent phases receive
 their own commits. No source datasets, generated scenes or tooling are published.
+
+- Checkpoint `0f3a6df` pushed to `origin/main`; its GitHub Actions run completed
+  successfully on the Windows/Linux Python matrix.
+
+Phase 4:
+
+- Optional FastAPI/Uvicorn service, fixed loopback binding, metadata facets and
+  literal/paginated sensory/motor search. Source hashes/versions stay explicit.
+- Single asynchronous path worker and one cached graph; threshold changes rebuild
+  it. Concurrent submissions are rejected, not queued without bounds. Both modes
+  export the existing validated scene contract and retain full provenance.
+- Godot Explore tab: source/target search and explicit choices, body-part filters,
+  proofread switch, threshold, mode comparison and optional selected-SWC fetching.
+  Input changes clear stale selections/results; failures retain the displayed scene.
+- Inspect tab and file-only viewing remain available. Comparison uses summaries
+  and switching one viewport, with separate cost definitions and identical-route
+  reporting. No physiological transmission/firing claims.
+- Real offline UI/API run: SNta35 → IN03A009 → accessory_tibia_flexor_C, two hops
+  in both modes, costs 2.0 (hops) / 11.0713 (normalized), 60,659 skeleton points.
+  Current output examples are under `generated/api-phase4/`; screenshot is
+  `docs/images/explorer-demo.png`. No BANC data was downloaded in this phase.
+- Installed small optional API/test dependencies and updated the lock/environment
+  to 0.4.0. Tests use HTTPX2, matching current Starlette's supported test client.
+  Compressed dependency downloads were roughly 1.2 MB including the initial legacy
+  HTTPX test-client attempt. API working set after the real two-mode run was about
+  2.2 GB on this machine (one observation, not a peak-memory guarantee).
+- 86 tests passed with Godot enabled, including synthetic real-HTTP Godot queries,
+  both path objectives, offline guards, busy-job rejection, missing morphology,
+  bad endpoints, no path, and recovery. Real GPU screenshot visually inspected.
+- Python CI now installs the API extra. Godot's 15 optional integration tests are
+  still local-only unless a CI runner supplies GODOT_BIN.
+
+Known limitations: no CNS outline, meshes, synapse positions, raw EM, side-by-side
+cameras or UI neuron removal. v2 is covered by synthetic tests but not live-validated.
+The morphology provider has no automatic L2/legacy fallback. Equal-cost ties can
+vary with igraph version. Server jobs finish even if the viewer closes; generated
+output cleanup remains explicit. Restart the API after replacing source caches.
+
+Next milestone: selected Phase 5 scientific detail, starting with spatial CNS
+context if the official outlines can be imported within the existing data limits.

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "banc-sensorimotor-explorer"
-version = "0.3.0"
+version = "0.4.0"
 description = "Local, reproducible BANC v888 sensory-to-motor graph exploration"
 requires-python = ">=3.11,<3.13"
 dependencies = ["polars>=1.0,<2", "pyarrow>=18", "pydantic>=2,<3", "typer>=0.15,<1", "rich>=13,<15", "igraph>=0.11,<2", "numpy>=1.26,<3"]
@@ -12,8 +12,11 @@ dependencies = ["polars>=1.0,<2", "pyarrow>=18", "pydantic>=2,<3", "typer>=0.15,
 [project.scripts]
 banc-explorer = "banc_explorer.cli:app"
 
+[project.optional-dependencies]
+api = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1"]
+
 [dependency-groups]
-dev = ["pytest>=8,<10", "ruff>=0.11"]
+dev = ["pytest>=8,<10", "ruff>=0.11", "httpx2>=2,<3"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/banc_explorer"]

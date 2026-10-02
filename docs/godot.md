@@ -2,7 +2,9 @@
 
 The Phase 3 viewer consumes a validated Python `skeleton_scene` v1 bundle. It is
 offline and has no Python process, CAVE credentials, API server or network dependency
-at runtime. Graph computation remains in Python.
+at runtime. Graph computation remains in Python. Phase 4 adds an optional
+[localhost explorer](local-api.md) in the Explore tab; the file mode described here
+continues to work independently.
 
 ## Launch on Windows
 
@@ -92,8 +94,8 @@ transmission probabilities or claims of physiological timing.
   Overlapping neurons can be selected unambiguously through the list.
 
 No CNS outline or anatomical dorsal/ventral axes are shown yet. The viewer has no
-live selection/query service, synapse locations, raw EM, meshes or neuron removal
-control. These remain later milestones. The file workflow already supports results
+synapse locations, raw EM, meshes or neuron removal control. A localhost selection
+and query service is now available through the optional API extra. The file workflow supports results
 of Python threshold/exclusion queries.
 
 ## Verification
@@ -106,8 +108,9 @@ $env:GODOT_BIN = "$PWD/.tools/godot/Godot_v4.7.2-stable_win64_console.exe"
 uv run pytest --basetemp .cache/pytest-godot -o cache_dir=.cache/pytest-cache-godot
 ```
 
-Without `GODOT_BIN`, those 14 tests are explicitly skipped. The current Python CI
-does not install Godot. Engine tests use tiny synthetic scenes and no public data.
+Without `GODOT_BIN`, those 14 tests are explicitly skipped (plus one HTTP/Godot
+integration test when the API extra is installed). The current Python CI does not
+install Godot. Engine tests use tiny synthetic scenes and no public data.
 They exercise Python → Godot loading, IDs above 2^53, both cost modes, directed
 edges, checksum/schema/topology rejection, zero-hop/isolated-root scenes, camera
 input handlers, list/click selection, pause/reset/replay and failed-load recovery.

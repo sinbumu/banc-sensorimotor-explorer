@@ -46,8 +46,16 @@ batches all segments; isolated roots use point geometry. Godot uses the existing
 world coordinates directly. An orthographic orbit camera, screen-space picking,
 metadata/edge panel and timed illustrative highlighting form the static MVP.
 See [viewer setup and verification](godot.md). Python retains scientific computation;
-Godot owns display/control. API integration, synapse evidence and raw EM remain
-later phases.
+Godot owns display/control. Synapse evidence and raw EM remain later phases.
+
+Phase 4 adds an optional FastAPI/Uvicorn adapter on loopback. Metadata is loaded
+and verified at startup; a single background worker loads/reuses one igraph session
+for the requested threshold and exports existing scene contracts. Source/target
+search and status polling remain responsive to separate HTTP requests. No graph
+logic moves into GDScript. The viewer's Explore panel searches static metadata,
+selects exact string IDs, submits a bounded job, then invokes the existing bundle
+loader and switches between mode results. Input changes invalidate stale results;
+failed queries retain the previous display. See [local API](local-api.md).
 
 Windows export staging now uses a UUID-named sibling created with ordinary mkdir.
 TemporaryDirectory's owner-only Windows ACL made renamed bundles unreadable by

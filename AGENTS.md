@@ -1676,7 +1676,9 @@ Do not call the project MVP complete until all of these are true:
 
 Verified 2026-10-02: file-based Phase 3 MVP, 78 Python/engine tests, real GPU
 rendering and automated camera/control smoke checks. See `docs/progress.md` and
-`docs/godot.md` for evidence and limitations. Integrated live selection is Phase 4.
+`docs/godot.md` for evidence and limitations. Phase 4 now adds integrated static-v888
+metadata selection and local path queries; 86 tests including HTTP/Godot integration
+passed. See `docs/local-api.md`. This remains a static snapshot, not live CAVE data.
 
 Raw EM is **not** required for MVP completion.
 

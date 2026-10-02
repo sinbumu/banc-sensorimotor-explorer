@@ -2,6 +2,7 @@ extends Control
 
 const Loader = preload("res://scripts/bundle_loader.gd")
 const OrbitCamera = preload("res://scripts/orbit_camera.gd")
+const ExplorerPanel = preload("res://scripts/explorer_panel.gd")
 const COLORS = [Color("67e8f9"), Color("fbbf65"), Color("b4a0ff"), Color("7ee5a2"), Color("fb90b6")]
 var loader := Loader.new()
 var bundle: Dictionary = {}
@@ -32,16 +33,21 @@ var reset_button: Button
 var show_all: CheckBox
 var dialog: FileDialog
 var last_error := ""
+var explorer: VBoxContainer
+var tabs: TabContainer
 
 
 func _ready() -> void:
 	get_window().min_size = Vector2i(1100, 720)
 	build_ui()
 	var directory := ""
+	var api_url := ""
 	var args := OS.get_cmdline_user_args()
 	for i in args.size() - 1:
 		if args[i] == "--scene-dir":
 			directory = args[i + 1]
+		elif args[i] == "--api-url":
+			api_url = args[i + 1]
 	if directory.is_empty():
 		var demo := ProjectSettings.globalize_path("res://../generated/scenes/phase3-demo")
 		if FileAccess.file_exists(demo.path_join("manifest.json")):
@@ -51,6 +57,12 @@ func _ready() -> void:
 	else:
 		status.text = "Open a scene's manifest.json to begin. Build a bundle with: banc-explorer scene export."
 		update_controls()
+	if not bundle.is_empty():
+		explorer.seed_from_scene(bundle.scene.path_result)
+	if not api_url.is_empty():
+		tabs.current_tab = 0
+		explorer.url_input.text = api_url
+		explorer.connect_api()
 
 
 func make_label(value: String, font_size := 16, color := Color("cbd5e1")) -> Label:
@@ -131,10 +143,24 @@ func build_ui() -> void:
 	legend = make_label("Each color is one neuron. Select a line or a neuron in the list.", 14, Color("8ca6bf"))
 	view_column.add_child(legend)
 	view_column.add_child(make_label("Drag: orbit  ·  Right drag: pan  ·  Wheel: zoom  ·  Click: select  ·  F: fit", 14, Color("8ca6bf")))
+	tabs = TabContainer.new()
+	tabs.custom_minimum_size.x = 400
+	body.add_child(tabs)
+	var explore_scroll := ScrollContainer.new()
+	explore_scroll.name = "Explore"
+	explore_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs.add_child(explore_scroll)
+	explorer = ExplorerPanel.new()
+	explorer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	explore_scroll.add_child(explorer)
+	explorer.scene_selected.connect(func(directory: String):
+		if not load_directory(directory):
+			explorer.message.text = "Scene validation failed: " + last_error)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size.x = 386
+	scroll.name = "Inspect"
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	body.add_child(scroll)
+	tabs.add_child(scroll)
+	tabs.current_tab = 1
 	var side := VBoxContainer.new()
 	side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	side.add_theme_constant_override("separation", 10)
@@ -377,6 +403,7 @@ func view_input(event: InputEvent) -> void:
 					if index >= 0:
 						pause()
 						select_neuron(index)
+						tabs.current_tab = 1
 				drag_button = 0
 	elif event is InputEventMouseMotion and drag_button != 0:
 		# Releasing outside the viewport must not leave a stuck drag.

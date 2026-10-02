@@ -45,6 +45,8 @@ def audit(staged=False):
             reasons.append("generated artifact")
         if path.suffix.lower() in DATA_EXTENSIONS and not fixture:
             reasons.append("raw data or geometry")
+        if path.name.startswith("banc_") and path.suffix.lower() == ".csv" and not fixture:
+            reasons.append("raw BANC table")
         if path.suffix.lower() in BINARY_EXTENSIONS:
             reasons.append("executable/archive")
         if (

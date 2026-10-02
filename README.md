@@ -3,12 +3,13 @@
 A local research prototype for exploring graph-theoretic sensory-to-motor paths
 in the adult female Drosophila BANC brain-and-nerve-cord connectome.
 
-**Current milestone: Phase 3 — file-based Godot 3D MVP.**
+**Current milestone: Phase 4 — integrated local Godot explorer.**
 Public data preparation, candidate lookup, minimum-hop and normalized-strength
 paths, provenance-bearing JSON, and real SWC scene exports work. Godot displays
 selected reconstructed neurons with orbit/pan/zoom, selection metadata, real edge
-values and illustrative activation playback. Source/target changes still use the
-Python CLI; interactive path queries inside Godot are the next phase.
+values and illustrative activation playback. The optional localhost API lets you
+search/select sensory and motor neurons, calculate both path modes, and reload
+their 3D scenes directly from Godot. The file-only workflow remains available.
 
 ## Setup (PowerShell)
 
@@ -156,7 +157,46 @@ for illustrative activation. **Open scene…** switches to another exported bund
 For fresh-checkout setup, other Godot installations, new path bundles, controls,
 limits and reproducible engine tests, see [Godot viewer guide](docs/godot.md).
 The viewer is file-based; source/target selection and recalculation inside the UI
-are the next milestone.
+are also available through the optional API below.
+
+## Interactive source/target selection
+
+After preparing the core data, start the optional API in one terminal:
+
+```powershell
+uv sync --locked --extra api
+uv run --extra api banc-explorer serve
+```
+
+Open the connected viewer from another terminal:
+
+```powershell
+.\scripts\run_viewer.ps1 -ApiUrl http://127.0.0.1:8767
+```
+
+In **Explore**, search and choose a sensory source and motor target, adjust the
+threshold, then click **Find path**. Enable **Fetch missing skeletons** when a new
+path needs selected SWCs, or use `serve --offline` for a completely cached demo.
+Switch the mode dropdown to compare the generated scenes; costs are labeled by
+their distinct graph objectives. The previous scene stays visible on errors.
+
+![Integrated Godot explorer after a real cached v888 query](docs/images/explorer-demo.png)
+
+See [local API setup, contracts and limitations](docs/local-api.md). No credentials,
+cloud service, bulk synapse table or manual scene-build command is required.
+
+## Repository checkpoints
+
+Raw data, caches, generated scenes, local tooling and credentials are ignored.
+Only tiny attributed fixtures and documentation screenshots belong in Git.
+Before each authorized phase commit/push, audit the exact index contents:
+
+```powershell
+uv run python scripts/check_repository.py --staged
+```
+
+The audit rejects known data/tool/credential paths, files over 2 MB and common
+embedded secret formats. It complements `.gitignore` and review of staged files.
 
 ## Scientific scope
 

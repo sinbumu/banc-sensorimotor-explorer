@@ -50,6 +50,30 @@ def friendly(function):
     return wrapped
 
 
+@app.command("serve")
+@friendly
+def serve(
+    config: Config = None,
+    port: Annotated[int, typer.Option(min=1024, max=65535)] = 8767,
+    output: Path = Path("generated/api"),
+    offline: bool = False,
+):
+    """Run the optional local explorer API on 127.0.0.1 only."""
+    try:
+        import uvicorn
+
+        from banc_explorer.api.app import create_app
+    except ImportError:
+        raise ValueError("Install the local API extra: uv sync --extra api") from None
+    settings = load_settings(config)
+    # Surface missing metadata as a normal CLI error before starting the server.
+    verify_cache(METADATA, settings.cache_dir)
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    console.print(f"BANC v888 / {settings.connectivity_version}; local API http://127.0.0.1:{port}")
+    console.print(f"Scene outputs: {output.resolve()}", markup=False)
+    uvicorn.run(create_app(settings, output, offline=offline), host="127.0.0.1", port=port)
+
+
 @morphology_app.command("fetch")
 @friendly
 def morphology_fetch(
