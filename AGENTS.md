@@ -164,6 +164,14 @@ context provenance. Reuse the common path transform; never scale these positions
 by the segmentation voxel resolution. See `docs/context.md`. Only these two
 outlines are fetched by the current provider, explicitly enabled by CLI/API.
 
+Verified during Phase 6A: the official viewer's public image source is
+`gs://seunglab_lee_fly_cns_001_alignment/aligned/v0`, with 8 × 8 × 45 nm sampling
+at its first scale and sharded JPEG chunks. Keep image alignment v0 separate from
+SWC materialization v888. Fetch bounded byte ranges only (32 MB/job), with ETag,
+generation and SHA-256 receipts; never fall back to downloading whole shards.
+The current EM tab selects an exact SWC node, not a verified synapse. See
+`docs/em.md` for coordinates, limits and the measured v3 synapse-table limitation.
+
 Approximate sizes can change and must not be treated as schema invariants. At the time this document was prepared:
 
 - metadata: ~49 MB;
@@ -1607,6 +1615,13 @@ Tasks:
 - record coordinate/version provenance.
 
 No whole-volume download.
+
+Phase 6A implements selected **morphology-point** image context and portable XY
+slice stacks. Do not mark the full Phase 6 synapse-evidence workflow complete:
+verified version-consistent synapse positions remain pending. The examined v3
+Parquet layout required approximately 7.76 GB even for projected columns after
+row-group pruning, so that scan was not performed. This detail-mode limitation
+does not block Phase 7's graph interventions.
 
 ---
 

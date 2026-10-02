@@ -8,7 +8,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MAX_BYTES = 2_000_000
 FORBIDDEN_DIRS = {".cache", ".tools", ".venv", ".godot", ".aws", ".cave", "__pycache__"}
-DATA_EXTENSIONS = {".feather", ".parquet", ".arrow", ".swc", ".glb", ".gltf", ".bin"}
+DATA_EXTENSIONS = {
+    ".feather",
+    ".parquet",
+    ".arrow",
+    ".swc",
+    ".glb",
+    ".gltf",
+    ".bin",
+    ".shard",
+    ".npy",
+    ".npz",
+}
 BINARY_EXTENSIONS = {".exe", ".dll", ".zip", ".7z", ".tar", ".gz", ".pck"}
 SECRET_EXTENSIONS = {".token", ".pem", ".key", ".p12", ".pfx"}
 SECRET_PATTERNS = [

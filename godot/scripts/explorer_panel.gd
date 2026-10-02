@@ -7,6 +7,7 @@ var base_url := "http://127.0.0.1:8767"
 var connected := false
 var busy := false
 var server_offline := false
+var em_available := false
 var active_job := ""
 var latest_job: Dictionary = {}
 var completed_scenes: Dictionary = {}
@@ -229,6 +230,7 @@ func _health_response(result: int, code: int, _headers: PackedStringArray, body:
 		return
 	connected = true
 	server_offline = data.get("offline", true)
+	em_available = data.get("em_available", false)
 	if server_offline:
 		downloads.button_pressed = false
 	connection_label.text = "Connected · BANC v888 / %s%s" % [data.connectivity_version, " · cache only" if server_offline else ""]

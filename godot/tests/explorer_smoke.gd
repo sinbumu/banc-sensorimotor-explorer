@@ -88,13 +88,37 @@ func run() -> void:
 	check(app.meshes.size() == panel.completed_scenes.normalized.neuron_ids.size(), "Geometry count follows computed route")
 	if "--include-context" in args:
 		check(app.context_meshes.size() == 2 and app.bundle.scene.schema_version == 2, "API requested context survives both mode loads")
+	if "--inspect-em" in args:
+		app.select_neuron(0)
+		var node_index := 0
+		for i in args.size() - 1:
+			if args[i] == "--swc-node":
+				node_index = app.bundle.geometries[0].node_ids.find(args[i + 1])
+		check(node_index >= 0, "Requested SWC point exists")
+		app.select_point(maxi(node_index, 0))
+		app.em_panel.update_controls()
+		check(not app.em_panel.fetch_button.disabled, "EM support exposed by API")
+		app.em_panel.fetch_button.pressed.emit()
+		check(await wait_until(func(): return not app.em_panel.busy), "EM job completes")
+		check(not app.em_panel.bundle.is_empty(), "EM bundle loads: " + app.em_panel.message.text)
+		if app.em_panel.bundle.is_empty():
+			finish()
+			return
+		check(app.em_panel.bundle.manifest.point.swc_node_id == app.em_panel.selected_point.swc_node_id, "Exact SWC point retained by EM result")
+		app.em_panel.slice_slider.value = 0
+		check(app.em_panel.image_view.texture == app.em_panel.bundle.images[0], "EM slice navigation")
+		app.em_panel.slice_slider.value = app.em_panel.bundle.images.size() / 2
 	if not screenshot.is_empty():
 		check(DisplayServer.get_name() != "headless", "Screenshot uses real renderer")
 		if DisplayServer.get_name() != "headless":
 			app.show_all.button_pressed = true
 			app.tabs.current_tab = 0
+			if "--inspect-em" in args:
+				app.tabs.current_tab = 2
 			await process_frame
 			await process_frame
+			if "--inspect-em" in args:
+				check(app.em_panel.slice_slider.get_global_rect().end.y <= app.tabs.get_global_rect().end.y, "EM slider visible without scrolling at demo size")
 			await RenderingServer.frame_post_draw
 			check(root.get_texture().get_image().save_png(screenshot) == OK, "Capture integrated explorer")
 	var displayed: Dictionary = app.bundle

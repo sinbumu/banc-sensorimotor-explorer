@@ -3,17 +3,21 @@
 A local research prototype for exploring graph-theoretic sensory-to-motor paths
 in the adult female Drosophila BANC brain-and-nerve-cord connectome.
 
-**Current milestone: Phase 5 — optional brain/VNC spatial context.**
+**Current milestone: Phase 6A — selected-point EM image context.**
 Public data preparation, candidate lookup, minimum-hop and normalized-strength
 paths, provenance-bearing JSON, and real SWC scene exports work. Godot displays
 selected reconstructed neurons with orbit/pan/zoom, selection metadata, real edge
 values and illustrative activation playback. The optional localhost API lets you
 search/select sensory and motor neurons, calculate both path modes, and reload
 their 3D scenes directly from Godot. Optional public neuropil outlines now provide
-spatial context with independent source provenance. The file-only workflow remains available.
+spatial context with independent source provenance. A small EM slice stack can now
+be inspected around a selected real SWC node. This is morphology-point image
+context, not a verified synapse location. The file-only workflow remains available.
 
 See [brain/VNC context setup, provenance and screenshot](docs/context.md) for
 `morphology context-fetch`, `scene export --include-context`, and the UI controls.
+See [selected-point EM setup, limits and screenshot](docs/em.md) for the optional
+`api` + `em` extras, the EM tab, offline image stacks and `em fetch`.
 
 ## Setup (PowerShell)
 

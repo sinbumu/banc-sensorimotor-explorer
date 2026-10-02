@@ -63,6 +63,43 @@ def client(local_service):
         yield connection
 
 
+@pytest.fixture
+def synthetic_em(monkeypatch):
+    pytest.importorskip("PIL")
+    import numpy as np
+
+    from banc_explorer.em.provider import EmVolume
+
+    receipt = {"url": "synthetic-fixture", "sha256": "a" * 64, "bytes": 1, "generation": None}
+
+    def skeleton(neuron_id, *args, **kwargs):
+        assert kwargs["offline"]
+        return parse_swc(
+            f"0 0 {neuron_id * 10000} 20000 30000 50 -1\n9 2 {neuron_id * 10000 + 1000} 22000 33000 50 0\n",
+            source_units="nm",
+        ), receipt
+
+    class Provider:
+        def __init__(self, transport):
+            assert transport.offline
+
+        def fetch_roi(self, request):
+            resolution = (8, 8, 45)
+            origin = tuple(
+                int(c // r) - s // 2
+                for c, r, s in zip(request.center_nm, resolution, request.size_voxels, strict=True)
+            )
+            data = np.zeros(request.size_voxels[::-1], dtype=np.uint8)
+            for i in range(data.shape[0]):
+                data[i] = i * 3
+            return EmVolume(
+                data, origin, resolution, "8_8_45", {}, [dict(url="synthetic", bytes=1)], 0
+            )
+
+    monkeypatch.setattr("banc_explorer.em.service.fetch_skeleton", skeleton)
+    monkeypatch.setattr("banc_explorer.em.service.PublicEmProvider", Provider)
+
+
 def request_body(**overrides):
     return {
         "source_id": "1",
@@ -197,8 +234,12 @@ def test_startup_requires_cached_metadata(tmp_path):
 @pytest.mark.skipif(
     not os.environ.get("GODOT_BIN"), reason="Set GODOT_BIN for HTTP/Godot integration"
 )
-def test_godot_search_compute_and_scene_switch_over_http(local_service):
+@pytest.mark.parametrize("inspect_em", [False, True])
+def test_godot_search_compute_and_scene_switch_over_http(local_service, request, inspect_em):
     import uvicorn
+
+    if inspect_em:
+        request.getfixturevalue("synthetic_em")
 
     service, builds = local_service
     app = create_app(Settings(), service.output, service=service)
@@ -231,6 +272,7 @@ def test_godot_search_compute_and_scene_switch_over_http(local_service):
                 "1",
                 "--target-id",
                 "5",
+                *(["--inspect-em"] if inspect_em else []),
             ],
             capture_output=True,
             text=True,
@@ -245,6 +287,38 @@ def test_godot_search_compute_and_scene_switch_over_http(local_service):
         thread.join(timeout=10)
         listener.close()
     assert not thread.is_alive()
+
+
+def test_em_endpoint_resolves_verified_swc_and_recovers(client, synthetic_em):
+    from banc_explorer.em.export import load_roi
+
+    body = dict(neuron_id="1", swc_node_id="9", swc_sha256="a" * 64, size_voxels=[32, 32, 8])
+
+    def run(values):
+        response = client.post("/em", json=values)
+        assert response.status_code == 202, response.text
+        id = response.json()["id"]
+        for _ in range(200):
+            result = client.get(f"/em/{id}").json()
+            if result["status"] in {"complete", "error"}:
+                return result
+            time.sleep(0.01)
+        pytest.fail("EM job timeout")
+
+    completed = run(body)
+    assert completed["status"] == "complete", completed
+    manifest = load_roi(Path(completed["results"]["roi_directory"]))
+    assert manifest.point.center_nm == (11000, 22000, 33000)
+    assert run(body | dict(swc_sha256="b" * 64))["status"] == "error"
+    assert run(body | dict(swc_node_id="999"))["status"] == "error"
+    assert run(body)["status"] == "complete"
+    for change in [
+        dict(allow_downloads=True),
+        dict(size_voxels=[257, 256, 32]),
+        dict(mip=9),
+        dict(swc_node_id="../outside"),
+    ]:
+        assert client.post("/em", json=body | change).status_code == 422
 
 
 def test_optional_context_job_and_missing_cache_recovery(client, synthetic_context, monkeypatch):

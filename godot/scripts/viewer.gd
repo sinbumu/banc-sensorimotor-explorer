@@ -3,6 +3,7 @@ extends Control
 const Loader = preload("res://scripts/bundle_loader.gd")
 const OrbitCamera = preload("res://scripts/orbit_camera.gd")
 const ExplorerPanel = preload("res://scripts/explorer_panel.gd")
+const EmPanel = preload("res://scripts/em_panel.gd")
 const COLORS = [Color("67e8f9"), Color("fbbf65"), Color("b4a0ff"), Color("7ee5a2"), Color("fb90b6")]
 var loader := Loader.new()
 var bundle: Dictionary = {}
@@ -39,6 +40,9 @@ var context_meshes: Array[MeshInstance3D] = []
 var context_toggle: CheckBox
 var context_fit: Button
 var context_label: Label
+var em_panel: VBoxContainer
+var point_marker: MeshInstance3D
+var selected_node := 0
 
 
 func _ready() -> void:
@@ -67,6 +71,10 @@ func _ready() -> void:
 		tabs.current_tab = 0
 		explorer.url_input.text = api_url
 		explorer.connect_api()
+	for i in args.size() - 1:
+		if args[i] == "--em-dir":
+			em_panel.load_directory(args[i + 1])
+			tabs.current_tab = 2
 
 
 func make_label(value: String, font_size := 16, color := Color("cbd5e1")) -> Label:
@@ -139,6 +147,17 @@ func build_ui() -> void:
 	view_container.add_child(viewport)
 	world = Node3D.new()
 	viewport.add_child(world)
+	point_marker = MeshInstance3D.new()
+	var marker_mesh := SphereMesh.new()
+	marker_mesh.radius = 0.12
+	marker_mesh.height = 0.24
+	point_marker.mesh = marker_mesh
+	var marker_material := StandardMaterial3D.new()
+	marker_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	marker_material.albedo_color = Color("ffffff")
+	point_marker.material_override = marker_material
+	point_marker.visible = false
+	world.add_child(point_marker)
 	camera = OrbitCamera.new()
 	world.add_child(camera)
 	camera.current = true
@@ -204,6 +223,14 @@ func build_ui() -> void:
 	side.add_child(make_label("INCOMING CONNECTION", 14, Color("67e8f9")))
 	connection = make_label("—", 14)
 	side.add_child(connection)
+	var em_scroll := ScrollContainer.new()
+	em_scroll.name = "EM"
+	em_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs.add_child(em_scroll)
+	em_panel = EmPanel.new()
+	em_panel.explorer = explorer
+	em_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	em_scroll.add_child(em_panel)
 	column.add_child(HSeparator.new())
 	var playback := HBoxContainer.new()
 	playback.add_theme_constant_override("separation", 12)
@@ -383,6 +410,7 @@ func select_neuron(index: int) -> void:
 	items.ensure_current_is_visible()
 	var neuron: Dictionary = bundle.scene.path_result.neurons[selected]
 	var reference: Dictionary = bundle.scene.neurons[selected]
+	select_point(int(bundle.geometries[selected].points.size() / 2))
 	details.text = "%s\nID  %s\nClass  %s\nRegion  %s · %s\nSensory part  %s\nEffector part  %s\nProofread  %s · %d SWC points · %d roots" % [annotation(neuron, "cell_type"), neuron.id, annotation(neuron, "super_class"), annotation(neuron, "region"), annotation(neuron, "side"), annotation(neuron, "body_part_sensory"), annotation(neuron, "body_part_effector"), annotation(neuron, "proofread"), reference.node_count, reference.root_count]
 	if selected == 0:
 		connection.text = "Source neuron. No incoming path edge."
@@ -392,6 +420,30 @@ func select_neuron(index: int) -> void:
 	stage.text = "Illustrative path activation\nNeuron %d / %d · graph step %d / %d" % [selected + 1, meshes.size(), selected, meshes.size() - 1]
 	refresh_colors()
 	update_controls()
+
+
+func select_point(index: int) -> void:
+	if bundle.is_empty():
+		return
+	var geometry: Dictionary = bundle.geometries[selected]
+	selected_node = clampi(index, 0, geometry.points.size() - 1)
+	var position := loader.point(geometry.points[selected_node])
+	point_marker.position = position
+	point_marker.visible = true
+	var transform_data: Dictionary = bundle.scene.coordinate_transform
+	var nm: Vector3 = loader.point(transform_data.origin_nm) + Vector3(position.x, position.z, -position.y) * transform_data.nm_per_world_unit
+	em_panel.set_point({"neuron_id": geometry.neuron_id, "swc_node_id": geometry.node_ids[selected_node], "swc_sha256": bundle.scene.neurons[selected].source.sha256}, nm)
+
+
+func nearest_node(screen_position: Vector2) -> int:
+	var closest := INF
+	var index := 0
+	for i in bundle.geometries[selected].points.size():
+		var distance := screen_position.distance_squared_to(camera.unproject_position(loader.point(bundle.geometries[selected].points[i])))
+		if distance < closest:
+			closest = distance
+			index = i
+	return index
 
 
 func refresh_colors() -> void:
@@ -477,6 +529,7 @@ func view_input(event: InputEvent) -> void:
 					if index >= 0:
 						pause()
 						select_neuron(index)
+						select_point(nearest_node(event.position))
 						tabs.current_tab = 1
 				drag_button = 0
 	elif event is InputEventMouseMotion and drag_button != 0:

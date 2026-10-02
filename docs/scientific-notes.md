@@ -18,6 +18,13 @@ function, but exposes only the two documented modes in the CLI. A source equal t
 its target yields a zero-hop, zero-cost path. Unreachable and unknown endpoints are
 reported separately; no-path queries do not create successful result files.
 
-Future Godot playback must say "Illustrative path activation". v2/v3 comparisons
+Godot playback says "Illustrative path activation". v2/v3 comparisons
 must identify the detector/table version and filtering. Static v888 data must not
 be silently joined to live annotations or evidence from another version.
+
+Selected-point EM displays JPEG-derived aligned-v0 imagery around a reconstructed
+v888 SWC node. A skeleton sample is not a verified synapse location, and merely
+seeing ultrastructure does not establish a connection or pathway. SWC provenance
+and image alignment provenance remain separate. The public image MIP 0 used here
+has 8 × 8 × 45 nm sampling; it is not described as lossless original EM. Neither
+screen-space picking nor array-midpoint initialization estimates a biological soma.

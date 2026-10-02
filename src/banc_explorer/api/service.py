@@ -1,5 +1,6 @@
 """Bounded local jobs backed by the existing graph and versioned scene contract."""
 
+import importlib.util
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
@@ -79,6 +80,7 @@ class ExplorerService:
             "connectivity_version": self.settings.connectivity_version,
             "status": "ready",
             "offline": self.offline,
+            "em_available": importlib.util.find_spec("PIL") is not None,
             "metadata_sha256": self.metadata_receipt["sha256"],
         }
 
@@ -157,7 +159,7 @@ class ExplorerService:
             raise ValueError("This server is offline. Uncheck 'Fetch missing scene assets'.")
         with self.lock:
             if self.active is not None:
-                raise BusyError("A path job is already running. Wait for it to finish.")
+                raise BusyError("A data job is already running. Wait for it to finish.")
             # Keep a small status history; durable provenance lives in exported bundles.
             while len(self.jobs) >= 32:
                 del self.jobs[next(iter(self.jobs))]
@@ -179,6 +181,65 @@ class ExplorerService:
             if job_id not in self.jobs:
                 raise KeyError(job_id)
             return deepcopy(self.jobs[job_id])
+
+    def submit_em(self, request):
+        if importlib.util.find_spec("PIL") is None:
+            raise ValueError("Install optional EM support: uv sync --extra api --extra em")
+        if request.allow_downloads and self.offline:
+            raise ValueError("This server is offline. Uncheck 'Fetch missing EM ranges'.")
+        with self.lock:
+            if self.active is not None:
+                raise BusyError("A data job is already running. Wait for it to finish.")
+            while len(self.jobs) >= 32:
+                del self.jobs[next(iter(self.jobs))]
+            job_id = uuid4().hex
+            self.jobs[job_id] = dict(
+                id=job_id,
+                kind="em",
+                status="queued",
+                message="Preparing selected-point image context",
+                results={},
+            )
+            self.active = job_id
+            initial = deepcopy(self.jobs[job_id])
+        self.executor.submit(self._run_em, job_id, request)
+        return initial
+
+    def _run_em(self, job_id, request):
+        from banc_explorer.em.service import build_em_scene
+
+        try:
+            self._update(
+                job_id, status="running", message="Reading bounded EM ranges (32 MB transfer cap)"
+            )
+            directory = self.output / job_id / "em"
+            manifest = build_em_scene(request, self.settings.cache_dir, directory, self.offline)
+            self._update(
+                job_id,
+                status="complete",
+                message="Selected-point image context ready",
+                results=dict(
+                    roi_directory=str(directory),
+                    downloaded_bytes=manifest.downloaded_bytes,
+                    neuron_id=str(manifest.point.neuron_id),
+                    swc_node_id=manifest.point.swc_node_id,
+                ),
+            )
+        except (ValueError, OSError) as exc:
+            self._update(job_id, status="error", error_code="data_error", message=str(exc))
+            log.warning("EM job %s failed: %s", job_id, exc)
+        except Exception:
+            log.exception("Unexpected EM job failure: %s", job_id)
+            self._update(
+                job_id,
+                status="error",
+                error_code="internal_error",
+                message="Unexpected EM error; see the API log.",
+            )
+        finally:
+            with self.lock:
+                if self.active == job_id:
+                    self.active = None
 
     def _update(self, job_id, **values):
         with self.lock:

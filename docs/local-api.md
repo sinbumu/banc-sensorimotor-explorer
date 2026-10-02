@@ -65,11 +65,13 @@ Stop the API before updating its environment on Windows, where a running
 
 | Route | Behavior |
 |---|---|
-| `GET /health` | Service/API version, BANC v888, connectivity version, offline flag, metadata hash |
+| `GET /health` | Service/API version, BANC v888, connectivity version, offline flag, metadata hash, `em_available` |
 | `GET /metadata/facets` | Sensory/effector body-part values from current cached metadata |
 | `GET /neurons/search` | `kind`, `q`, `body_part`, `proofread_only`, `limit` (1–100), `offset` |
 | `POST /paths` | Validate endpoint classes/options and start one bounded background job (202) |
 | `GET /paths/{job_id}` | Queued/running/complete/error status and completed bundle locations |
+| `POST /em` | Resolve a hash-verified cached SWC node and start a bounded EM job (202) |
+| `GET /em/{job_id}` | Job status and completed `roi_directory`, transfer count and point IDs |
 
 Example request:
 
@@ -91,7 +93,7 @@ Host checks restrict loopback names and cross-origin requests are rejected. This
 is a desktop companion on a trusted local machine, not a hosted/multi-user service.
 Do not expose it through a reverse proxy or LAN port forwarding.
 
-Only one job runs at a time; another submission receives 409 instead of queuing
+Path and EM jobs share one worker. Only one job runs at a time; another submission receives 409 instead of queuing
 unbounded work. Only one graph is retained, reused for the same threshold; changing
 the threshold replaces it. Each selected route is capped at 40 neurons. The service
 retains the last 32 job statuses in memory and keeps generated bundles on disk at
@@ -107,10 +109,11 @@ polled, not a claimed percentage or latency estimate.
 
 ## Verification and limits
 
-API tests use synthetic metadata, edges and SWCs. With `GODOT_BIN` set, an additional
-integration test starts a loopback HTTP server and drives actual Godot controls
+API tests use synthetic metadata, edges, SWCs and EM imagery. With `GODOT_BIN` set,
+integration tests start a loopback HTTP server and drive actual Godot controls
 through search, explicit selection, asynchronous computation, both mode loads and
-stale-selection invalidation. No live BANC/network data is needed in CI.
+stale-selection invalidation, exact SWC-point inspection and slice navigation.
+No live BANC/network data is needed in CI.
 
 ```powershell
 $env:GODOT_BIN = "$PWD/.tools/godot/Godot_v4.7.2-stable_win64_console.exe"
@@ -121,11 +124,25 @@ The current verified real scene was regenerated through this UI/API route using
 only cached v888 files; no manual path/export command was used for that run.
 OpenGL rendering and screenshots were checked. These are automated app-input
 checks plus visual inspection, not a manual OS-mouse test. The GitHub Python matrix
-installs the API extra; it does not currently install the optional Godot runtime.
+installs the API and EM extras; it does not currently install the optional Godot runtime.
 
 Mode comparison uses summaries plus switching one 3D viewport. There are no two
-simultaneous cameras, live synapse positions, raw EM or UI neuron
-removal yet. The latter scientific/detail/intervention features are later phases.
+simultaneous cameras, verified synapse positions or UI neuron removal yet.
+
+## Optional selected-point EM
+
+Install and run with both extras: `uv sync --locked --extra api --extra em`, then
+`uv run --extra api --extra em banc-explorer serve`. A plain `uv sync` can remove
+optional packages. See [EM setup and provenance](em.md) for the full workflow.
+
+`POST /em` accepts `neuron_id` (decimal string), `swc_node_id` (decimal string),
+`swc_sha256` (from the displayed scene), `size_voxels` (default `[256,256,32]`),
+`mip` (default 0), and `allow_downloads` (default false). It accepts no arbitrary
+coordinates/URLs. The service verifies the cached source SWC and resolves the
+actual node coordinates. Missing SWCs are errors, not automatic downloads.
+EM fetching is separately controlled from scene-asset fetching and honors the
+server offline flag. Files save in `generated/api/<job-id>/em/`; completed results
+contain `roi_directory`, `downloaded_bytes`, `neuron_id` and `swc_node_id`.
 
 References: [FastAPI lifespan](https://fastapi.tiangolo.com/advanced/events/),
 [FastAPI testing](https://fastapi.tiangolo.com/tutorial/testing/),

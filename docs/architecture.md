@@ -46,7 +46,7 @@ batches all segments; isolated roots use point geometry. Godot uses the existing
 world coordinates directly. An orthographic orbit camera, screen-space picking,
 metadata/edge panel and timed illustrative highlighting form the static MVP.
 See [viewer setup and verification](godot.md). Python retains scientific computation;
-Godot owns display/control. Synapse evidence and raw EM remain later phases.
+Godot owns display/control. Later detail phases build on this contract.
 
 Phase 4 adds an optional FastAPI/Uvicorn adapter on loopback. Metadata is loaded
 and verified at startup; a single background worker loads/reuses one igraph session
@@ -72,3 +72,13 @@ receipts and share the path coordinate transform. Scene schema 2 carries optiona
 context geometry; schema 1 outputs/readers remain supported. Godot renders two
 batched translucent surfaces with independent context/path camera fitting. See
 [context.md](context.md) for provenance, format and limits.
+
+Phase 6A adds a narrow `EmProvider` interface and public aligned-v0 implementation.
+An exact selected SWC node resolves into source nm coordinates; bounded HTTP ranges
+retrieve only precomputed shard indices and JPEG chunks. No graph calculation moves
+into the viewer. Optional Pillow exports a hash-checked portable XY PNG stack with
+per-range source provenance, separate from the v888 skeleton/graph scene contract.
+Godot's EM tab uses the shared localhost job worker or opens a saved stack offline.
+It labels the point as morphology context; version-consistent synapse evidence
+remains pending because the examined v3 table's row groups do not prune efficiently.
+See [em.md](em.md) for the measured limitation and coordinate/access contracts.

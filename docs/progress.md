@@ -164,6 +164,45 @@ Phase 5 — selected scientific detail (neuropil spatial context):
   audit passing. The package version is 0.5.0. Documentation: `docs/context.md`;
   screenshot: `docs/images/context-demo.png`; generated files remain ignored.
 
-Next milestone: investigate bounded, version-consistent selected-synapse evidence
-and official EM ROI access before implementing Phase 6. Full synapse/EM downloads
-remain prohibited without explicit approval; outlines do not provide synapse positions.
+Phase 5 checkpoint `307fc2d` pushed to `origin/main`; GitHub Actions run
+`36960173477` passed on the Windows/Linux Python matrix.
+
+Phase 6A — selected morphology-point EM context:
+
+- Verified the official viewer's anonymous aligned-v0 image source and precomputed
+  sharding metadata. Added a small provider interface, strict HTTP range reader,
+  bounded gzip/JPEG decoding, cross-chunk crop assembly and hashed offline cache.
+  No whole-shard fallback, credentials, cloud-volume or full-volume download.
+- Default 256 × 256 × 32 voxels at 8 × 8 × 45 nm; limits 256 × 256 × 64, 2 MB per
+  HTTP range, 32 MB transferred/job, 64 chunks and 64 MB accessed. ETag/generation
+  consistency and cached hashes are checked. Missing imagery remains an error.
+- CLI `em fetch`, optional Pillow extra, shared API background worker and exact
+  cached SWC-node/hash resolution. Portable PNG stacks record image alignment,
+  SWC provenance, coordinates, each source range and each output image checksum.
+- Godot EM tab: selected-node marker, explicit fetch toggle, offline stack opening,
+  XY slices and Z slider. Old images keep their own point labels on selection
+  changes or failures. The UI explicitly says the point is not a verified synapse.
+- Real neuron `720575941350568496`, node `824`, point `(494753, 769856, 151915)` nm:
+  prepared a small probe followed by the default ROI; total EM cache payload
+  **1,682,385 bytes** in 32 files. Later UI/API runs transferred zero bytes.
+  Cache: `.cache/banc/v888/em/ranges/`. Generated outputs remain under `generated/`.
+- Investigated v3 selected-synapse feasibility using only about 8.03 MB of Parquet
+  footer metadata. The 19.73 GB object's 1,989 row groups all survived pruning for
+  the selected pair; projected ID/pre/post/XYZ columns still total 7.76 GB. No
+  synapse-row data pages were downloaded. Full Phase 6 synapse-centered evidence
+  remains pending; image context at a morphology point does not satisfy it.
+- Installed optional Pillow 12.3.0 (about 6.9 MiB compressed wheel); version 0.6.0
+  and lock updated. CI installs API + EM extras without live data. No new core or
+  CAVE dependency. Added raw shard/NumPy-array exclusions to ignore and Git audit.
+- **137 tests passed** with Godot enabled, including range/source integrity,
+  bounded decompression, asymmetric coordinate crops, point identity, API recovery,
+  checksum/schema/PNG rejection and real HTTP-to-Godot synthetic workflows.
+  Ruff check/format passed. The real GPU/API demo passed 29 automated controls;
+  its screenshot was visually inspected after fixing a clipped-slider layout.
+  Evidence: `docs/images/em-demo.png`; instructions and source links: `docs/em.md`.
+  These are automated app-input checks, not manual OS mouse testing.
+
+Next milestone: Phase 7 graph interventions with before/after comparison. Existing
+CLI neuron exclusion can underpin the UI without waiting for a bounded v3 synapse
+lookup. Synapse evidence requires a separately verified selective provider/subset;
+never silently scan the large table or substitute another detector version.

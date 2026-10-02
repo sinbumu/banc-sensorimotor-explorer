@@ -34,6 +34,8 @@ morphology_app = typer.Typer(no_args_is_help=True)
 app.add_typer(morphology_app, name="morphology")
 scene_app = typer.Typer(no_args_is_help=True)
 app.add_typer(scene_app, name="scene")
+em_app = typer.Typer(no_args_is_help=True)
+app.add_typer(em_app, name="em")
 console = Console()
 Config = Annotated[Path | None, typer.Option(help="TOML configuration file.")]
 
@@ -91,6 +93,37 @@ def morphology_fetch(
     parsed, _ = fetch_skeleton(neuron_id, settings.cache_dir, offline=offline, refresh=refresh)
     console.print(f"BANC v888 morphology: {len(parsed.nodes)} nodes, {len(parsed.roots)} roots; nm")
     console.print(str(skeleton(neuron_id).local_path(settings.cache_dir).resolve()), markup=False)
+
+
+@em_app.command("fetch")
+@friendly
+def em_fetch(
+    scene: Annotated[Path, typer.Option()],
+    neuron_id: Annotated[int, typer.Option(min=1)],
+    node_id: Annotated[str, typer.Option(help="Exact SWC node ID, not an array index.")],
+    output: Annotated[Path, typer.Option()],
+    config: Config = None,
+    size_xy: Annotated[int, typer.Option(min=1, max=256)] = 256,
+    depth: Annotated[int, typer.Option(min=1, max=64)] = 32,
+    mip: Annotated[int, typer.Option(min=0, max=6)] = 0,
+    offline: bool = False,
+):
+    """Fetch a tiny EM stack around a scene SWC point; not a synapse claim."""
+    from banc_explorer.em.export import export_roi, point_from_scene
+    from banc_explorer.em.provider import PublicEmProvider
+    from banc_explorer.em.transport import RangeCache
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    point = point_from_scene(scene, neuron_id, node_id)
+    transport = RangeCache(load_settings(config).cache_dir, offline=offline)
+    manifest = export_roi(
+        PublicEmProvider(transport), point, output, size_voxels=(size_xy, size_xy, depth), mip=mip
+    )
+    console.print(
+        f"EM stack: {size_xy} x {size_xy} x {depth}; downloaded {manifest.downloaded_bytes:,} bytes"
+    )
+    console.print(manifest.interpretation)
+    console.print(str(output.resolve()), markup=False)
 
 
 @morphology_app.command("context-fetch")

@@ -20,6 +20,9 @@ generated/*
 *.glb
 *.gltf
 *.bin
+*.shard
+*.npy
+*.npz
 *.swc
 *.zip
 *.7z

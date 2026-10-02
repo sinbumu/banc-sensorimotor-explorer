@@ -149,6 +149,12 @@ func run() -> void:
 			check(false, "Screenshots require a display renderer")
 		else:
 			app.show_all.button_pressed = true
+			if "--em-dir" in args:
+				app.tabs.current_tab = 2
+				check(not app.em_panel.bundle.is_empty(), "Load saved EM stack")
+				app.em_panel.slice_slider.value = 0
+				check(app.em_panel.image_view.texture == app.em_panel.bundle.images[0], "EM first slice")
+				app.em_panel.slice_slider.value = app.em_panel.bundle.images.size() / 2
 			if "--fit-context" in args:
 				app.fit_context()
 			await process_frame
