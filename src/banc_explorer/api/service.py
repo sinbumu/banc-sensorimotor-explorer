@@ -17,9 +17,14 @@ from banc_explorer.data.catalog import METADATA
 from banc_explorer.data.downloader import verify_cache
 from banc_explorer.data.metadata import candidates, load_metadata
 from banc_explorer.graph.costs import PathMode
+from banc_explorer.graph.interventions import (
+    InterventionRequest,
+    InterventionRules,
+    compare_intervention,
+)
 from banc_explorer.graph.paths import NoPathError
 from banc_explorer.models import Contract, NeuronId, PathNeuron
-from banc_explorer.morphology.export import export_scene
+from banc_explorer.morphology.export import export_scene, load_scene
 from banc_explorer.provenance import write_result
 from banc_explorer.workflow import Session, open_session
 
@@ -181,6 +186,114 @@ class ExplorerService:
             if job_id not in self.jobs:
                 raise KeyError(job_id)
             return deepcopy(self.jobs[job_id])
+
+    def submit_intervention(self, request: InterventionRequest):
+        if request.allow_downloads and self.offline:
+            raise ValueError("This server is offline. Uncheck 'Fetch missing scene assets'.")
+        with self.lock:
+            if self.active is not None:
+                raise BusyError("A data job is already running. Wait for it to finish.")
+            baseline = self.jobs.get(request.baseline_job_id)
+            if (
+                not baseline
+                or baseline.get("status") != "complete"
+                or baseline.get("kind") is not None
+                or request.mode.value not in baseline.get("results", {})
+            ):
+                raise ValueError("Calculate a fresh ordinary path baseline in Explore first.")
+            baseline = deepcopy(baseline)
+            while len(self.jobs) >= 32:
+                del self.jobs[next(iter(self.jobs))]
+            job_id = uuid4().hex
+            self.jobs[job_id] = dict(
+                id=job_id,
+                kind="intervention",
+                status="queued",
+                message="Preparing graph intervention",
+                results={},
+            )
+            self.active = job_id
+            initial = deepcopy(self.jobs[job_id])
+        self.executor.submit(self._run_intervention, job_id, request, baseline)
+        return initial
+
+    def _run_intervention(self, job_id, request, baseline):
+        try:
+            self._update(
+                job_id, status="running", message="Verifying baseline and structural filters"
+            )
+            before_directory = Path(baseline["results"][request.mode.value]["scene_directory"])
+            scene, _ = load_scene(before_directory)
+            before = scene.path_result
+            if (
+                self.session is None
+                or self.session.settings.min_synapse_count > request.min_synapse_count
+            ):
+                self.session = None
+                self.session = open_session(
+                    self.settings.model_copy(
+                        update={"min_synapse_count": request.min_synapse_count}
+                    )
+                )
+            rules = InterventionRules.model_validate(
+                {k: getattr(request, k) for k in InterventionRules.model_fields}
+            )
+            report = compare_intervention(self.session, before, rules)
+            directory = self.output / job_id
+            directory.mkdir(parents=True)
+            report_file = directory / "comparison.json"
+            payload = report.model_dump_json(indent=2)
+            type(report).model_validate_json(payload)
+            report_file.write_text(payload + "\n", encoding="utf-8")
+            results = report.summary() | dict(
+                report_file=str(report_file),
+                before_scene_directory=str(before_directory),
+                after_scene_directory=None,
+                after_scene_error=None,
+            )
+            if report.after:
+                path_file = directory / "after.json"
+                write_result(report.after, path_file)
+                self._update(job_id, message="Preparing intervention morphology")
+                try:
+                    if len(report.after.neurons) > 40:
+                        raise ValueError(
+                            "After path exceeds the 40-neuron viewer budget; graph comparison is saved."
+                        )
+                    after_dir = directory / "after"
+                    exported = export_scene(
+                        path_file,
+                        after_dir,
+                        self.settings.cache_dir,
+                        offline=self.offline or not request.allow_downloads,
+                        include_context=baseline["request"].get("include_context", False),
+                    )
+                    if sum(n.node_count for n in exported.neurons) > 1_000_000:
+                        raise ValueError("After scene exceeds the one-million-point viewer budget.")
+                    results["after_scene_directory"] = str(after_dir)
+                except (ValueError, OSError) as exc:
+                    results["after_scene_error"] = str(exc)
+            self._update(
+                job_id,
+                status="complete",
+                message="Graph comparison ready; no phenotype prediction",
+                results=results,
+            )
+        except (ValueError, OSError) as exc:
+            self._update(job_id, status="error", error_code="data_error", message=str(exc))
+            log.warning("Intervention %s failed: %s", job_id, exc)
+        except Exception:
+            log.exception("Unexpected intervention failure: %s", job_id)
+            self._update(
+                job_id,
+                status="error",
+                error_code="internal_error",
+                message="Unexpected intervention error; see the API log.",
+            )
+        finally:
+            with self.lock:
+                if self.active == job_id:
+                    self.active = None
 
     def submit_em(self, request):
         if importlib.util.find_spec("PIL") is None:

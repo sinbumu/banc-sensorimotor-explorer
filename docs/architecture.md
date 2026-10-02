@@ -82,3 +82,12 @@ Godot's EM tab uses the shared localhost job worker or opens a saved stack offli
 It labels the point as morphology context; version-consistent synapse evidence
 remains pending because the examined v3 table's row groups do not prune efficiently.
 See [em.md](em.md) for the measured limitation and coordinate/access contracts.
+
+Phase 7 adds a graph intervention contract and comparison report shared by CLI and
+API. A temporary filtered graph preserves the base graph's vertex universe and raw
+input totals; isolated metadata-less vertices are retained unless explicitly filtered.
+The API resolves baselines from its own completed path jobs, validates their scene
+hashes, and rejects changed source hashes. No-path outcomes retain a query manifest.
+Morphology failure does not erase a valid graph comparison. Godot pins an explicit
+baseline and switches independently validated before/after scenes. Rules, source
+versions and objectives stay in Python; see [interventions.md](interventions.md).

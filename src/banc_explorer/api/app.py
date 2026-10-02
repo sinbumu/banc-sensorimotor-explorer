@@ -11,6 +11,7 @@ from starlette.responses import JSONResponse
 from banc_explorer.api.service import BusyError, ExplorerService, Kind, PathRequest
 from banc_explorer.config import Settings
 from banc_explorer.em.service import EmRequest
+from banc_explorer.graph.interventions import InterventionRequest
 
 
 def create_app(settings: Settings, output: Path, *, offline=False, service=None) -> FastAPI:
@@ -97,6 +98,19 @@ def create_app(settings: Settings, output: Path, *, offline=False, service=None)
 
     @app.get("/em/{job_id}")
     def em_status(job_id: str):
+        return path_status(job_id)
+
+    @app.post("/interventions/path", status_code=202)
+    def intervention_request(body: InterventionRequest):
+        try:
+            return service.submit_intervention(body)
+        except BusyError as exc:
+            raise HTTPException(409, str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+
+    @app.get("/interventions/{job_id}")
+    def intervention_status(job_id: str):
         return path_status(job_id)
 
     return app

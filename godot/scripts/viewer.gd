@@ -4,6 +4,7 @@ const Loader = preload("res://scripts/bundle_loader.gd")
 const OrbitCamera = preload("res://scripts/orbit_camera.gd")
 const ExplorerPanel = preload("res://scripts/explorer_panel.gd")
 const EmPanel = preload("res://scripts/em_panel.gd")
+const InterventionPanel = preload("res://scripts/intervention_panel.gd")
 const COLORS = [Color("67e8f9"), Color("fbbf65"), Color("b4a0ff"), Color("7ee5a2"), Color("fb90b6")]
 var loader := Loader.new()
 var bundle: Dictionary = {}
@@ -43,6 +44,7 @@ var context_label: Label
 var em_panel: VBoxContainer
 var point_marker: MeshInstance3D
 var selected_node := 0
+var intervention: VBoxContainer
 
 
 func _ready() -> void:
@@ -231,6 +233,18 @@ func build_ui() -> void:
 	em_panel.explorer = explorer
 	em_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	em_scroll.add_child(em_panel)
+	var intervention_scroll := ScrollContainer.new()
+	intervention_scroll.name = "Intervene"
+	intervention_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs.add_child(intervention_scroll)
+	intervention = InterventionPanel.new()
+	intervention.viewer = self
+	intervention.explorer = explorer
+	intervention.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	intervention.scene_selected.connect(func(directory: String):
+		if not load_directory(directory):
+			intervention.message.text = "Scene rejected: " + loader.error)
+	intervention_scroll.add_child(intervention)
 	column.add_child(HSeparator.new())
 	var playback := HBoxContainer.new()
 	playback.add_theme_constant_override("separation", 12)
@@ -410,6 +424,7 @@ func select_neuron(index: int) -> void:
 	items.ensure_current_is_visible()
 	var neuron: Dictionary = bundle.scene.path_result.neurons[selected]
 	var reference: Dictionary = bundle.scene.neurons[selected]
+	intervention.set_selected(neuron)
 	select_point(int(bundle.geometries[selected].points.size() / 2))
 	details.text = "%s\nID  %s\nClass  %s\nRegion  %s · %s\nSensory part  %s\nEffector part  %s\nProofread  %s · %d SWC points · %d roots" % [annotation(neuron, "cell_type"), neuron.id, annotation(neuron, "super_class"), annotation(neuron, "region"), annotation(neuron, "side"), annotation(neuron, "body_part_sensory"), annotation(neuron, "body_part_effector"), annotation(neuron, "proofread"), reference.node_count, reference.root_count]
 	if selected == 0:

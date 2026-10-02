@@ -72,6 +72,8 @@ Stop the API before updating its environment on Windows, where a running
 | `GET /paths/{job_id}` | Queued/running/complete/error status and completed bundle locations |
 | `POST /em` | Resolve a hash-verified cached SWC node and start a bounded EM job (202) |
 | `GET /em/{job_id}` | Job status and completed `roi_directory`, transfer count and point IDs |
+| `POST /interventions/path` | Compare filters against a completed baseline job, same mode/endpoints |
+| `GET /interventions/{job_id}` | Reachability, before/after summary, report and optional scene locations |
 
 Example request:
 
@@ -93,9 +95,10 @@ Host checks restrict loopback names and cross-origin requests are rejected. This
 is a desktop companion on a trusted local machine, not a hosted/multi-user service.
 Do not expose it through a reverse proxy or LAN port forwarding.
 
-Path and EM jobs share one worker. Only one job runs at a time; another submission receives 409 instead of queuing
-unbounded work. Only one graph is retained, reused for the same threshold; changing
-the threshold replaces it. Each selected route is capped at 40 neurons. The service
+Path, EM and intervention jobs share one worker. Only one job runs at a time; another submission receives 409 instead of queuing
+unbounded work. One base graph is retained and reused for a compatible threshold;
+intervention queries also build a temporary filtered graph. Each viewer route is
+capped at 40 neurons. Larger intervention routes retain their graph report. The service
 retains the last 32 job statuses in memory and keeps generated bundles on disk at
 `generated/api/<job-id>/{hops,normalized}/` (or the explicit CLI `--output`).
 Old files are not silently deleted. Stop the service before manually clearing
@@ -127,7 +130,8 @@ checks plus visual inspection, not a manual OS-mouse test. The GitHub Python mat
 installs the API and EM extras; it does not currently install the optional Godot runtime.
 
 Mode comparison uses summaries plus switching one 3D viewport. There are no two
-simultaneous cameras, verified synapse positions or UI neuron removal yet.
+simultaneous cameras or verified synapse positions. The [Intervene tab](interventions.md)
+now supports neuron/type removal, threshold/side changes and before/after switching.
 
 ## Optional selected-point EM
 

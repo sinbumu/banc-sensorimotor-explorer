@@ -129,7 +129,7 @@ Phase 4:
 
 Phase 4 checkpoint `f05dd0f` pushed to `origin/main`; GitHub Actions passed.
 
-Known limitations: no neuron meshes, synapse positions, raw EM, side-by-side
+At the Phase 4 checkpoint: no neuron meshes, synapse positions, raw EM, side-by-side
 cameras or UI neuron removal. v2 is covered by synthetic tests but not live-validated.
 The morphology provider has no automatic L2/legacy fallback. Equal-cost ties can
 vary with igraph version. Server jobs finish even if the viewer closes; generated
@@ -202,7 +202,44 @@ Phase 6A — selected morphology-point EM context:
   Evidence: `docs/images/em-demo.png`; instructions and source links: `docs/em.md`.
   These are automated app-input checks, not manual OS mouse testing.
 
-Next milestone: Phase 7 graph interventions with before/after comparison. Existing
-CLI neuron exclusion can underpin the UI without waiting for a bounded v3 synapse
-lookup. Synapse evidence requires a separately verified selective provider/subset;
-never silently scan the large table or substitute another detector version.
+Phase 6A checkpoint `fc50595` pushed to `origin/main`; GitHub Actions run
+`36965653946` passed on the Windows/Linux Python matrix.
+
+Phase 7 — graph intervention playground:
+
+- Added whole-neuron/type exclusion, count-threshold changes and all-vertex side
+  restriction. Unknown side is excluded when a side is requested, including at
+  endpoints. Original input totals, source hashes, mode and epsilon are preserved.
+  A temporary filtered graph leaves the reusable base graph unchanged and retains
+  isolated vertices, including source endpoint IDs absent from metadata.
+- `path intervene` exports a typed comparison plus an optional after path. API
+  `/interventions/path` uses a validated ordinary path job as the pinned baseline,
+  sharing the existing bounded worker. Source changes and unknown filters are
+  rejected. No-path results preserve their full query provenance. Missing after
+  morphology is reported separately without discarding a valid graph comparison.
+- Godot Intervene tab pins the displayed baseline, accepts explicit ID/type filters,
+  side and threshold, shows before/after costs/hops and path-ID changes, and switches
+  validated 3D scenes. Rule changes invalidate stale comparisons. Unreachable
+  results keep the before scene explicitly labeled; there is no invented after path.
+- Real normalized example: removing `720575941557376164` changes SNta35 → IN03A009
+  → accessory_tibia_flexor_C (2 hops, cost 11.0713078411) to SNta35 → AN05B009 →
+  IN03A007 → accessory_tibia_flexor_C (3 hops, cost 14.6115986170).
+  Added IDs `720575941618680533` and `720575941597665472` came from actual metadata.
+- Fetched only those two public v888 SWCs: **5,349,296 bytes** into
+  `.cache/banc/v888/skeletons/`. After scene: 121,647 nodes / 121,643 branches.
+  No new dependency, core dataset, synapse table, mesh or EM download. A separate
+  right-only query excluded 102,061 vertices while preserving the baseline path.
+- **150 tests passed**, including 29 optional engine tests, both graph objectives,
+  all filter types, unchanged totals/source provenance, missing-side policy,
+  filtered endpoints, unreachable paths, unchanged base graph, offline CLI,
+  missing-SWC recovery and real HTTP/Godot switching. Ruff check/format passed.
+  A real OpenGL/API run passed 34 automated app-input checks; screenshot visually
+  inspected after compacting the panel so comparison controls fit. This was not
+  manually driven OS input. Version 0.7.0; screenshot `docs/images/intervention-demo.png`.
+
+Current delivery: Phases 0–5, selected-point Phase 6A and Phase 7 are implemented.
+Full Phase 6 selected-synapse evidence remains pending. It needs a separately
+verified selective provider/subset; never silently scan the large table or
+substitute another detector version. Other limits: one comparison viewport,
+line skeletons rather than neuron meshes, no activity/phenotype prediction,
+and no live v2 validation beyond deterministic synthetic coverage.

@@ -108,6 +108,26 @@ func run() -> void:
 		app.em_panel.slice_slider.value = 0
 		check(app.em_panel.image_view.texture == app.em_panel.bundle.images[0], "EM slice navigation")
 		app.em_panel.slice_slider.value = app.em_panel.bundle.images.size() / 2
+	if "--intervene" in args:
+		app.select_neuron(1)
+		var excluded_id: String = app.bundle.scene.path_result.neurons[1].id
+		app.intervention.pin_baseline()
+		check(not app.intervention.baseline.is_empty(), "Pin exact displayed API path")
+		app.intervention.exclude_selected()
+		app.intervention.update_controls()
+		app.intervention.submit()
+		check(await wait_until(func(): return not app.intervention.busy), "Intervention job completes")
+		check(app.intervention.latest_job.get("status") == "complete", "Intervention succeeds: " + app.intervention.message.text)
+		var result: Dictionary = app.intervention.results
+		check(result.get("reachable", false) and result.get("after_scene_directory") != null, "Alternate path morphology available: " + app.intervention.message.text)
+		if result.get("after_scene_directory") == null:
+			finish()
+			return
+		check(excluded_id not in result.after_ids and excluded_id in result.before_ids, "Intervention removes selected neuron from route")
+		app.intervention.show_result(false)
+		check(app.bundle.scene.path_result.neurons[1].id == excluded_id, "Before scene remains available")
+		app.intervention.show_result(true)
+		check(excluded_id in app.bundle.scene.path_result.manifest.excluded_neurons, "After scene records exclusion provenance")
 	if not screenshot.is_empty():
 		check(DisplayServer.get_name() != "headless", "Screenshot uses real renderer")
 		if DisplayServer.get_name() != "headless":
@@ -115,13 +135,26 @@ func run() -> void:
 			app.tabs.current_tab = 0
 			if "--inspect-em" in args:
 				app.tabs.current_tab = 2
+			if "--intervene" in args:
+				app.tabs.current_tab = 3
 			await process_frame
 			await process_frame
 			if "--inspect-em" in args:
 				check(app.em_panel.slice_slider.get_global_rect().end.y <= app.tabs.get_global_rect().end.y, "EM slider visible without scrolling at demo size")
+			if "--intervene" in args:
+				check(app.intervention.after_button.get_global_rect().end.y <= app.tabs.get_global_rect().end.y, "Before/after controls visible at demo size")
 			await RenderingServer.frame_post_draw
 			check(root.get_texture().get_image().save_png(screenshot) == OK, "Capture integrated explorer")
 	var displayed: Dictionary = app.bundle
+	if "--intervene" in args:
+		app.intervention.threshold.value = 100000
+		app.intervention.update_controls()
+		check(app.intervention.results.is_empty() and app.intervention.after_button.disabled, "Changed intervention invalidates prior comparison")
+		app.intervention.submit()
+		check(await wait_until(func(): return not app.intervention.busy), "Unreachable intervention completes")
+		check(app.intervention.results.get("reachable") == false and app.intervention.after_button.disabled, "No-path result has no fabricated after scene")
+		check(app.bundle.directory == app.intervention.baseline.directory, "No-path comparison shows the labeled baseline")
+		displayed = app.bundle
 	panel.threshold.value += 1
 	check(panel.completed_scenes.is_empty() and app.bundle == displayed, "Changed query invalidates mode results but retains current scene")
 	panel.queries.sensory.text = "changed query"

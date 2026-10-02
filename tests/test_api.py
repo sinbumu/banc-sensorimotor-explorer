@@ -234,11 +234,11 @@ def test_startup_requires_cached_metadata(tmp_path):
 @pytest.mark.skipif(
     not os.environ.get("GODOT_BIN"), reason="Set GODOT_BIN for HTTP/Godot integration"
 )
-@pytest.mark.parametrize("inspect_em", [False, True])
-def test_godot_search_compute_and_scene_switch_over_http(local_service, request, inspect_em):
+@pytest.mark.parametrize("feature", ["base", "em", "intervention"])
+def test_godot_search_compute_and_scene_switch_over_http(local_service, request, feature):
     import uvicorn
 
-    if inspect_em:
+    if feature == "em":
         request.getfixturevalue("synthetic_em")
 
     service, builds = local_service
@@ -272,7 +272,8 @@ def test_godot_search_compute_and_scene_switch_over_http(local_service, request,
                 "1",
                 "--target-id",
                 "5",
-                *(["--inspect-em"] if inspect_em else []),
+                *(["--inspect-em"] if feature == "em" else []),
+                *(["--intervene"] if feature == "intervention" else []),
             ],
             capture_output=True,
             text=True,
@@ -319,6 +320,59 @@ def test_em_endpoint_resolves_verified_swc_and_recovers(client, synthetic_em):
         dict(swc_node_id="../outside"),
     ]:
         assert client.post("/em", json=body | change).status_code == 422
+
+
+def intervention_job(client, baseline, **changes):
+    response = client.post(
+        "/interventions/path",
+        json=dict(baseline_job_id=baseline["id"], mode="hops", excluded_neurons=["2"], **changes),
+    )
+    assert response.status_code == 202, response.text
+    for _ in range(500):
+        job = client.get("/interventions/" + response.json()["id"]).json()
+        if job["status"] in {"complete", "error"}:
+            return job
+        time.sleep(0.01)
+    pytest.fail("Intervention job timeout")
+
+
+def test_intervention_api_comparison_and_no_path_recovery(client):
+    from banc_explorer.graph.interventions import InterventionReport
+
+    baseline = complete_job(client)
+    after = intervention_job(client, baseline)
+    assert after["status"] == "complete", after
+    report = InterventionReport.model_validate_json(
+        Path(after["results"]["report_file"]).read_bytes()
+    )
+    assert report.before.hop_count == 2 and report.after.hop_count == 3
+    assert (
+        load_scene(Path(after["results"]["after_scene_directory"]))[0].path_result == report.after
+    )
+    unreachable = intervention_job(client, baseline, min_synapse_count=100)
+    assert unreachable["status"] == "complete" and unreachable["results"]["reachable"] is False
+    assert unreachable["results"]["after_scene_directory"] is None
+    assert complete_job(client)["results"]["hops"]["neuron_ids"] == ["1", "2", "5"]
+    assert (
+        client.post(
+            "/interventions/path", json=dict(baseline_job_id="0" * 32, mode="hops")
+        ).status_code
+        == 422
+    )
+
+
+def test_intervention_keeps_graph_report_when_after_swc_missing(client, monkeypatch):
+    baseline = complete_job(client)
+
+    def unavailable(*args, **kwargs):
+        raise ValueError("Missing SWC cache")
+
+    monkeypatch.setattr("banc_explorer.api.service.export_scene", unavailable)
+    job = intervention_job(client, baseline)
+    assert job["status"] == "complete" and job["results"]["reachable"] is True
+    assert job["results"]["after_scene_directory"] is None
+    assert "Missing SWC" in job["results"]["after_scene_error"]
+    assert Path(job["results"]["report_file"]).exists()
 
 
 def test_optional_context_job_and_missing_cache_recovery(client, synthetic_context, monkeypatch):

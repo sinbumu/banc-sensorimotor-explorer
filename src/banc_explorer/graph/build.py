@@ -52,6 +52,27 @@ def build_graph(
         .filter(~pl.col("pre").is_in(excluded) & ~pl.col("post").is_in(excluded))
         .sort("pre", "post")
     )
+    return _assemble(metadata, edges, ids, min_synapse_count, excluded, coverage)
+
+
+def filtered_graph(base: ConnectomeGraph, *, min_synapse_count: int, excluded_neurons: list[int]):
+    """Filter an already validated graph, preserving isolated vertices and raw totals."""
+    if min_synapse_count < base.min_synapse_count or base.excluded_neurons:
+        raise ValueError(
+            "Filtering requires an unmodified graph at or below the requested threshold."
+        )
+    excluded = sorted({parse_id(value) for value in excluded_neurons})
+    if set(excluded) - set(base.ids):
+        raise ValueError("Excluded neuron ID is absent from this graph.")
+    removed = set(excluded)
+    ids = [n for n in base.ids if n not in removed]
+    edges = filter_edges(base.edges, min_synapse_count).filter(
+        ~pl.col("pre").is_in(excluded) & ~pl.col("post").is_in(excluded)
+    )
+    return _assemble(base.metadata, edges, ids, min_synapse_count, excluded, base.coverage)
+
+
+def _assemble(metadata, edges, ids, min_synapse_count, excluded, coverage):
     lookup = pl.DataFrame({"id": ids}, schema={"id": pl.UInt64}).with_row_index("index")
     dense = (
         edges.select("pre", "post")

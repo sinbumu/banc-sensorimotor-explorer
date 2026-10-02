@@ -946,8 +946,7 @@ Implement as a provider abstraction:
 
 ```python
 class EmProvider(Protocol):
-    def fetch_roi(self, center_nm, size_voxels, mip=...) -> EmVolume:
-        ...
+    def fetch_roi(self, center_nm, size_voxels, mip=...) -> EmVolume: ...
 ```
 
 Potential official routes include BANC Neuroglancer/CAVE and archived public imagery. Verify current access at implementation time.
@@ -1641,6 +1640,13 @@ Add:
 - visualize before/after.
 
 Keep claims graph-theoretic.
+
+Implemented Phase 7: `path intervene`, shared-worker API comparisons and the Godot
+Intervene tab. Side restriction applies to all vertices including endpoints and
+excludes unknown side. Rules define the entire new graph filter, not cumulative
+mutations. Preserve original input totals, source hashes and the pinned objective.
+No-path outcomes are saved comparisons; unavailable morphology does not invalidate
+a reachable graph result. See `docs/interventions.md` for tested behavior and limits.
 
 ---
 

@@ -361,3 +361,41 @@ def demo_build(
     for result in results:
         show_path(result)
     console.print(f"Demo and selection rationale: {destination.resolve()}", markup=False)
+
+
+@path_app.command("intervene")
+@friendly
+def intervene(
+    baseline: Annotated[Path, typer.Option(help="Existing graph-path JSON to compare.")],
+    output: Annotated[Path, typer.Option(help="New output directory.")],
+    config: Config = None,
+    min_synapse_count: Annotated[int | None, typer.Option(min=1, max=100000)] = None,
+    exclude_id: Annotated[list[int] | None, typer.Option()] = None,
+    exclude_cell_type: Annotated[list[str] | None, typer.Option()] = None,
+    side: str | None = None,
+):
+    """Compare a structural graph intervention offline; no phenotype prediction."""
+    from banc_explorer.graph.interventions import InterventionRules, compare_intervention
+
+    if output.exists():
+        raise ValueError("Output already exists; choose a new intervention directory.")
+    before = PathResult.model_validate_json(baseline.read_bytes())
+    rules = InterventionRules(
+        min_synapse_count=min_synapse_count or before.manifest.min_synapse_count,
+        excluded_neurons=exclude_id or [],
+        excluded_cell_types=exclude_cell_type or [],
+        side=side,
+    )
+    settings = load_settings(config)
+    settings.min_synapse_count = rules.min_synapse_count
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    report = compare_intervention(open_session(settings), before, rules)
+    payload = report.model_dump_json(indent=2)
+    type(report).model_validate_json(payload)
+    output.mkdir(parents=True)
+    (output / "comparison.json").write_text(payload + "\n", encoding="utf-8")
+    if report.after:
+        write_result(report.after, output / "after.json")
+    console.print(report.interpretation)
+    console.print(json.dumps(report.summary(), indent=2), markup=False)
+    console.print(str(output.resolve()), markup=False)

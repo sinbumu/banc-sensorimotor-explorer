@@ -95,7 +95,9 @@ transmission probabilities or claims of physiological timing.
 
 Optional [brain/VNC neuropil outlines](context.md) now provide spatial context.
 Anatomical dorsal/ventral axes are not asserted. The viewer has no
-verified synapse locations, neuron meshes or neuron removal control. The optional
+verified synapse locations or neuron meshes. The [Intervene tab](interventions.md)
+supports structural neuron/type exclusion, threshold/side changes and before/after
+scene switching. The optional
 [EM tab](em.md) displays bounded image stacks at selected real SWC nodes, with
 explicit morphology-point labeling and independent image provenance. A localhost selection
 and query service is now available through the optional API extra. The file workflow supports results
@@ -111,7 +113,7 @@ $env:GODOT_BIN = "$PWD/.tools/godot/Godot_v4.7.2-stable_win64_console.exe"
 uv run pytest --basetemp .cache/pytest-godot -o cache_dir=.cache/pytest-cache-godot
 ```
 
-Without `GODOT_BIN`, engine tests are explicitly skipped (28 with both API and EM
+Without `GODOT_BIN`, engine tests are explicitly skipped (29 with both API and EM
 extras installed). The current Python CI does not
 install Godot. Engine tests use tiny synthetic scenes and no public data.
 They exercise Python → Godot loading, IDs above 2^53, both cost modes, directed
