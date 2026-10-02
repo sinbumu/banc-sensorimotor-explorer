@@ -93,7 +93,8 @@ transmission probabilities or claims of physiological timing.
 - Screen-space selection chooses the nearest projected branch within 9 pixels.
   Overlapping neurons can be selected unambiguously through the list.
 
-No CNS outline or anatomical dorsal/ventral axes are shown yet. The viewer has no
+Optional [brain/VNC neuropil outlines](context.md) now provide spatial context.
+Anatomical dorsal/ventral axes are not asserted. The viewer has no
 synapse locations, raw EM, meshes or neuron removal control. A localhost selection
 and query service is now available through the optional API extra. The file workflow supports results
 of Python threshold/exclusion queries.
@@ -108,7 +109,7 @@ $env:GODOT_BIN = "$PWD/.tools/godot/Godot_v4.7.2-stable_win64_console.exe"
 uv run pytest --basetemp .cache/pytest-godot -o cache_dir=.cache/pytest-cache-godot
 ```
 
-Without `GODOT_BIN`, those 14 tests are explicitly skipped (plus one HTTP/Godot
+Without `GODOT_BIN`, those 20 tests are explicitly skipped (plus one HTTP/Godot
 integration test when the API extra is installed). The current Python CI does not
 install Godot. Engine tests use tiny synthetic scenes and no public data.
 They exercise Python → Godot loading, IDs above 2^53, both cost modes, directed

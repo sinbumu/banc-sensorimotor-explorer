@@ -41,12 +41,14 @@ def godot_bundle(tmp_path, monkeypatch, toy_tables):
     monkeypatch.setattr("banc_explorer.morphology.export.fetch_skeleton", synthetic_swc)
     session = Session(build_graph(metadata, edges), Settings(), receipt, receipt)
 
-    def make(mode=PathMode.normalized, zero_hops=False):
+    def make(mode=PathMode.normalized, zero_hops=False, include_context=False):
         path = tmp_path / f"{mode}.json"
         directory = tmp_path / str(mode)
         target = base + 1 if zero_hops else base + 5
         write_result(session.calculate(base + 1, target, mode), path)
-        export_scene(path, directory, tmp_path / "cache", offline=True)
+        export_scene(
+            path, directory, tmp_path / "cache", offline=True, include_context=include_context
+        )
         return directory
 
     return make
@@ -174,5 +176,38 @@ def test_godot_rejects_invalid_bundle(godot_bundle, case, expected):
     write_json(scene_path, scene)
     if case != "missing_geometry":
         write_json(geometry_path, geometry)
+    refresh_hashes(directory)
+    run_engine(directory, "validate", directory, expected)
+
+
+def test_godot_context_controls(godot_bundle, synthetic_context):
+    directory = godot_bundle(include_context=True)
+    run_engine(directory, "smoke", "--scene-dir", directory)
+
+
+@pytest.mark.parametrize("case", ["indices", "traversal", "checksum", "version", "materialization"])
+def test_godot_rejects_invalid_context(godot_bundle, synthetic_context, case):
+    directory = godot_bundle(include_context=True)
+    scene = json.loads((directory / "path.json").read_text())
+    ref = scene["context"][0]
+    geometry_path = directory / ref["geometry"]
+    expected = "outline"
+    if case == "indices":
+        geometry = json.loads(geometry_path.read_text())
+        geometry["triangles"][0][0] = 99
+        write_json(geometry_path, geometry)
+        ref["geometry_sha256"] = sha256(geometry_path.read_bytes()).hexdigest()
+    elif case == "traversal":
+        ref["geometry"] = "../outside.json"
+    elif case == "checksum":
+        geometry_path.write_text("{}")
+        expected = "SHA-256"
+    elif case == "version":
+        scene["schema_version"] = 1
+        expected = "context"
+    elif case == "materialization":
+        ref["source_materialization"] = 888
+        expected = "provenance"
+    write_json(directory / "path.json", scene)
     refresh_hashes(directory)
     run_engine(directory, "validate", directory, expected)

@@ -27,6 +27,7 @@ var mode: OptionButton
 var threshold: SpinBox
 var proofread: CheckBox
 var downloads: CheckBox
+var include_context: CheckBox
 var compare: CheckBox
 var find_button: Button
 var health_http: HTTPRequest
@@ -134,9 +135,14 @@ func _ready() -> void:
 	compare.button_pressed = true
 	compare.toggled.connect(func(_value: bool): invalidate_results())
 	add_child(compare)
+	include_context = CheckBox.new()
+	include_context.text = "Include brain / VNC outlines"
+	include_context.tooltip_text = "Public neuropil context has separate provenance; not a v888 materialization asset."
+	include_context.toggled.connect(func(_value: bool): invalidate_results())
+	add_child(include_context)
 	downloads = CheckBox.new()
-	downloads.text = "Fetch missing skeletons"
-	downloads.tooltip_text = "Only selected path neurons; at most 20 MB per SWC and 100 MB per exported scene. Core metadata and edges must already be cached."
+	downloads.text = "Fetch missing scene assets"
+	downloads.tooltip_text = "Only selected path neurons; at most 20 MB per SWC and 100 MB per exported scene. Optional outlines: two regions, six files, at most 5 MB per file. Core metadata and edges must already be cached."
 	downloads.button_pressed = false
 	add_child(downloads)
 	find_button = Button.new()
@@ -317,6 +323,7 @@ func update_controls() -> void:
 	proofread.disabled = busy
 	compare.disabled = busy
 	downloads.disabled = busy or server_offline
+	include_context.disabled = busy
 	find_button.disabled = busy or not connected or chosen.sensory.is_empty() or chosen.motor.is_empty()
 	find_button.text = "Working…" if busy else "Find path"
 
@@ -329,7 +336,7 @@ func find_paths() -> void:
 	latest_job = {}
 	update_controls()
 	message.text = "Submitting selected endpoints…"
-	var payload := {"source_id": chosen.sensory.id, "target_id": chosen.motor.id, "min_synapse_count": int(threshold.value), "modes": MODES if compare.button_pressed else [MODES[mode.selected]], "proofread_endpoints": proofread.button_pressed, "allow_downloads": downloads.button_pressed}
+	var payload := {"source_id": chosen.sensory.id, "target_id": chosen.motor.id, "min_synapse_count": int(threshold.value), "modes": MODES if compare.button_pressed else [MODES[mode.selected]], "proofread_endpoints": proofread.button_pressed, "allow_downloads": downloads.button_pressed, "include_context": include_context.button_pressed}
 	if not request(submit_http, "/paths", payload):
 		busy = false
 		update_controls()

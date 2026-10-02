@@ -63,6 +63,7 @@ func run() -> void:
 	check(not panel.find_button.disabled, "Two explicit endpoint choices enable Find path")
 	panel.mode.select(1)
 	panel.compare.button_pressed = true
+	panel.include_context.button_pressed = "--include-context" in args
 	panel.find_button.pressed.emit()
 	check(panel.busy and panel.find_button.disabled and not panel.queries.sensory.editable, "Job keeps inputs stable while running")
 	check(await wait_until(func(): return not panel.busy), "Job completes within test deadline")
@@ -85,6 +86,8 @@ func run() -> void:
 	check(app.bundle.scene.path_result.manifest.path_mode == "normalized", "Switch back loads normalized-strength scene")
 	check("cost definition" in panel.comparison.text, "Comparison labels distinct cost definitions")
 	check(app.meshes.size() == panel.completed_scenes.normalized.neuron_ids.size(), "Geometry count follows computed route")
+	if "--include-context" in args:
+		check(app.context_meshes.size() == 2 and app.bundle.scene.schema_version == 2, "API requested context survives both mode loads")
 	if not screenshot.is_empty():
 		check(DisplayServer.get_name() != "headless", "Screenshot uses real renderer")
 		if DisplayServer.get_name() != "headless":

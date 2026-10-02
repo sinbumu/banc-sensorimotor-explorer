@@ -2,7 +2,7 @@
 
 Select sensory and motor neurons inside Godot, calculate one or both path modes,
 then inspect the resulting real skeletons. Python still owns graph computation
-and provenance. Godot consumes the same validated v1 scene bundles as the file MVP.
+and provenance. Godot consumes the validated v1/v2 scene bundles as the file MVP.
 
 ## Run
 
@@ -36,9 +36,11 @@ nerve, neuromere, side, functional annotation or decimal ID.
    refine the query if the desired neuron is absent. IDs remain decimal strings.
 3. Choose minimum hops or normalized strength, a minimum synapse count, and whether
    to calculate both modes. Proofread filtering applies to endpoints only.
-4. Check **Fetch missing skeletons** to permit selected SWC downloads when needed.
+4. Check **Fetch missing scene assets** to permit selected SWC downloads when needed.
    It is unchecked by default. Each SWC is bounded to 20 MB and each scene to
-   100 MB total source SWCs. No mesh, synapse table or full archive is fetched.
+   100 MB total source SWCs. Optional **Include brain / VNC outlines** adds six
+   bounded files (5 MB each maximum); see [context](context.md). No neuron mesh,
+   synapse table or full archive is fetched.
 5. Click **Find path**. Progress reports graph loading, calculation and skeleton
    preparation. The current scene stays visible until the new bundle validates.
 6. Switch modes to view the corresponding reconstruction. Both summaries remain
@@ -48,7 +50,7 @@ nerve, neuromere, side, functional annotation or decimal ID.
    Existing camera and illustrative activation controls continue to work.
 
 For the completely cached workspace demonstration, start the server with
-`serve --offline`. The viewer then disables skeleton fetching. Known metadata IDs:
+`serve --offline`. The viewer then disables asset fetching. Known metadata IDs:
 sensory `720575941350568496` (SNta35), motor `720575941463793552`
 (accessory_tibia_flexor_C). These are a right middle-leg sensory annotation and
 right hind-leg motor annotation; they are not asserted to form a behavioral route.
@@ -78,7 +80,8 @@ Example request:
   "modes": ["hops", "normalized"],
   "min_synapse_count": 5,
   "proofread_endpoints": true,
-  "allow_downloads": false
+  "allow_downloads": false,
+  "include_context": false
 }
 ```
 
@@ -121,7 +124,7 @@ checks plus visual inspection, not a manual OS-mouse test. The GitHub Python mat
 installs the API extra; it does not currently install the optional Godot runtime.
 
 Mode comparison uses summaries plus switching one 3D viewport. There are no two
-simultaneous cameras, CNS outlines, live synapse positions, raw EM or UI neuron
+simultaneous cameras, live synapse positions, raw EM or UI neuron
 removal yet. The latter scientific/detail/intervention features are later phases.
 
 References: [FastAPI lifespan](https://fastapi.tiangolo.com/advanced/events/),

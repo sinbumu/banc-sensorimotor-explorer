@@ -71,10 +71,11 @@ relative offsets between neurons and their forest topology survive conversion.
 
 ```text
 <scene>/
-  path.json                  skeleton_scene v1 descriptor
+  path.json                  skeleton_scene v1 or v2 descriptor
   graph-path.json            byte-for-byte original graph_path v1 input
   manifest.json              timestamp, exporter version, hashes of both files
   skeletons/<neuron_id>.json  geometry and original SWC node identity
+  context/{3,4}.json         optional schema-2 brain/VNC geometry
   inspection.html            optional, self-contained offline inspection aid
 ```
 
@@ -111,3 +112,7 @@ path playback belong to Phase 3.
 
 Tests include an eight-node real v888 SWC excerpt with source attribution in its
 header; it is intentionally truncated and must not be presented as a whole neuron.
+
+Optional neuropil context uses scene schema 2 and the same common transform.
+See [context.md](context.md) for the separate unversioned source provenance,
+bounded fetch policy and backward compatibility.

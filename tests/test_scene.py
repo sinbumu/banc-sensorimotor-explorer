@@ -11,7 +11,7 @@ from banc_explorer.data import downloader
 from banc_explorer.data.catalog import skeleton
 from banc_explorer.graph.build import build_graph
 from banc_explorer.graph.costs import PathMode
-from banc_explorer.morphology.export import export_scene, load_scene, safe_file
+from banc_explorer.morphology.export import export_scene, load_context, load_scene, safe_file
 from banc_explorer.morphology.models import SkeletonGeometry, SkeletonScene
 from banc_explorer.morphology.preview import write_preview
 from banc_explorer.morphology.provider import fetch_skeleton
@@ -47,6 +47,7 @@ def scene_input(tmp_path, monkeypatch, toy_tables):
 def test_fetch_export_roundtrip_topology_and_relative_positions(scene_input, monkeypatch):
     path, directory, cache, requested = scene_input
     scene = export_scene(path, directory, cache)
+    assert "context" not in json.loads((directory / "path.json").read_text())
     assert requested == [skeleton(i).url for i in [1, 2, 5]]
     assert all("compiled_data/banc_888/banc_banc_space_swc" in url for url in requested)
     assert not list(directory.parent.glob(".scene-*"))
@@ -172,3 +173,19 @@ def test_failed_final_validation_cleans_stage_without_publishing(scene_input, mo
     assert not directory.exists()
     assert not list(directory.parent.glob(".scene-*"))
     assert neighbor.read_text() == "unrelated"
+
+
+def test_context_scene_roundtrip_shared_transform_and_integrity(scene_input, synthetic_context):
+    path, directory, cache, _ = scene_input
+    scene = export_scene(path, directory, cache, include_context=True)
+    loaded, _ = load_scene(directory)
+    assert loaded == scene and scene.schema_version == 2
+    outlines = load_context(directory, scene)
+    assert outlines[0].points[0] == scene.coordinate_transform.forward((0, 0, 0))
+    assert all(ref.source_materialization is None for ref in scene.context)
+    assert all(ref.provider == "banc_public_region_outlines" for ref in scene.context)
+    with pytest.raises(ValueError, match="requires scene schema"):
+        SkeletonScene.model_validate(scene.model_dump() | {"schema_version": 1})
+    (directory / scene.context[0].geometry).write_text("{}")
+    with pytest.raises(ValueError, match="Outline integrity"):
+        load_scene(directory)

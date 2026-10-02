@@ -35,6 +35,10 @@ var dialog: FileDialog
 var last_error := ""
 var explorer: VBoxContainer
 var tabs: TabContainer
+var context_meshes: Array[MeshInstance3D] = []
+var context_toggle: CheckBox
+var context_fit: Button
+var context_label: Label
 
 
 func _ready() -> void:
@@ -110,7 +114,7 @@ func build_ui() -> void:
 	titles.add_child(make_label("BANC  /  SENSORIMOTOR EXPLORER", 27, Color("edf6ff")))
 	titles.add_child(make_label("Reconstructed morphology  ·  Directed structural paths  ·  Local v888 snapshot", 15, Color("8ca6bf")))
 	header.add_child(make_button("Open scene…", func(): dialog.popup_centered_ratio(0.75)))
-	header.add_child(make_button("Fit camera", func(): camera.reset_view()))
+	header.add_child(make_button("Fit path", fit_path))
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 22)
@@ -142,6 +146,22 @@ func build_ui() -> void:
 	camera.resize_view(Vector2(960, 600))
 	legend = make_label("Each color is one neuron. Select a line or a neuron in the list.", 14, Color("8ca6bf"))
 	view_column.add_child(legend)
+	var context_row := HBoxContainer.new()
+	view_column.add_child(context_row)
+	context_toggle = CheckBox.new()
+	context_toggle.text = "Neuropil outlines"
+	context_toggle.button_pressed = true
+	context_toggle.toggled.connect(func(value: bool):
+		for mesh in context_meshes:
+			mesh.visible = value)
+	context_row.add_child(context_toggle)
+	context_fit = make_button("Fit context", fit_context)
+	context_row.add_child(context_fit)
+	context_label = make_label("Optional brain / VNC spatial context", 12, Color("8ca6bf"))
+	context_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	context_row.add_child(context_label)
+	context_toggle.disabled = true
+	context_fit.disabled = true
 	view_column.add_child(make_label("Drag: orbit  ·  Right drag: pan  ·  Wheel: zoom  ·  Click: select  ·  F: fit", 14, Color("8ca6bf")))
 	tabs = TabContainer.new()
 	tabs.custom_minimum_size.x = 400
@@ -288,12 +308,66 @@ func load_directory(directory: String) -> bool:
 	var mode := "Minimum-hop path" if run.path_mode == "hops" else "Normalized-strength path"
 	summary.text = "BANC v888  /  %s  /  %s\n%d neurons · %d hops · count ≥ %d · total cost %.4f" % [run.connectivity_version, mode, meshes.size(), graph.hop_count, run.min_synapse_count, graph.total_cost]
 	legend.text = "%s → %s  |  %s branches\n1 world unit = %.2f µm · Y-up display frame · fixed-width skeleton lines" % [annotation(graph.neurons[0], "cell_type"), annotation(graph.neurons[-1], "cell_type"), branch_count, bundle.scene.coordinate_transform.nm_per_world_unit / 1000.0]
-	camera.fit_bounds(loader.point(bundle.scene.bounds_min), loader.point(bundle.scene.bounds_max))
+	build_context()
+	fit_path()
 	status.text = "Verified scene: " + directory.replace("\\", "/")
 	status.add_theme_color_override("font_color", Color("8ca6bf"))
 	dialog.current_dir = directory
 	select_neuron(0)
 	return true
+
+
+func fit_path() -> void:
+	if not bundle.is_empty():
+		camera.fit_bounds(loader.point(bundle.scene.bounds_min), loader.point(bundle.scene.bounds_max))
+
+
+func fit_context() -> void:
+	if bundle.is_empty() or context_meshes.is_empty():
+		return
+	context_toggle.button_pressed = true
+	var lower := loader.point(bundle.scene.bounds_min)
+	var upper := loader.point(bundle.scene.bounds_max)
+	for ref in bundle.scene.context:
+		lower = lower.min(loader.point(ref.bounds_min))
+		upper = upper.max(loader.point(ref.bounds_max))
+	camera.fit_bounds(lower, upper)
+
+
+func build_context() -> void:
+	for instance in context_meshes:
+		instance.free()
+	context_meshes.clear()
+	for i in bundle.context.size():
+		var geometry: Dictionary = bundle.context[i]
+		var vertices := PackedVector3Array()
+		var indices := PackedInt32Array()
+		for value in geometry.points:
+			vertices.append(loader.point(value))
+		for face in geometry.triangles:
+			for index in face:
+				indices.append(int(index))
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		arrays[Mesh.ARRAY_INDEX] = indices
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		var material := StandardMaterial3D.new()
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		material.albedo_color = Color(0.35, 0.60, 0.75, 0.08) if i == 0 else Color(0.50, 0.60, 0.72, 0.08)
+		var instance := MeshInstance3D.new()
+		instance.mesh = mesh
+		instance.material_override = material
+		instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		instance.visible = context_toggle.button_pressed
+		world.add_child(instance)
+		context_meshes.append(instance)
+	context_toggle.disabled = context_meshes.is_empty()
+	context_fit.disabled = context_meshes.is_empty()
+	context_label.text = "Brain + VNC neuropil\nPublic context · independent of v888" if not context_meshes.is_empty() else "No outlines in this bundle\nExport with --include-context"
 
 
 func annotation(neuron: Dictionary, key: String) -> String:

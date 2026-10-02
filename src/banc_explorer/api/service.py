@@ -35,6 +35,7 @@ class PathRequest(Contract):
     min_synapse_count: int = Field(default=5, ge=1, le=100000, strict=True)
     proofread_endpoints: bool = True
     allow_downloads: bool = False
+    include_context: bool = False
 
     @model_validator(mode="after")
     def distinct_modes(self):
@@ -153,7 +154,7 @@ class ExplorerService:
     def submit(self, request: PathRequest):
         self._validate_endpoints(request)
         if request.allow_downloads and self.offline:
-            raise ValueError("This server is offline. Uncheck 'Fetch missing skeletons'.")
+            raise ValueError("This server is offline. Uncheck 'Fetch missing scene assets'.")
         with self.lock:
             if self.active is not None:
                 raise BusyError("A path job is already running. Wait for it to finish.")
@@ -234,6 +235,7 @@ class ExplorerService:
                     scene_dir,
                     self.settings.cache_dir,
                     offline=not request.allow_downloads or self.offline,
+                    include_context=request.include_context,
                 )
                 node_count = sum(n.node_count for n in scene.neurons)
                 if node_count > 1_000_000:

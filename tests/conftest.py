@@ -26,3 +26,22 @@ def toy_tables():
         }
     )
     return metadata, edges
+
+
+@pytest.fixture
+def synthetic_context(monkeypatch):
+    from banc_explorer.morphology.context import REGIONS
+
+    receipt = {"url": "synthetic-outline", "sha256": "a" * 64, "bytes": 1, "generation": "123"}
+    outlines = [
+        dict(
+            region_id=id,
+            label=label,
+            points_nm=[(0, 0, 0), (100000, 0, 0), (0, 100000, 0)],
+            triangles=[(0, 1, 2)],
+            receipts=[receipt] * 4,
+        )
+        for id, label in REGIONS.items()
+    ]
+    monkeypatch.setattr("banc_explorer.morphology.export.fetch_context", lambda *a, **k: outlines)
+    return outlines

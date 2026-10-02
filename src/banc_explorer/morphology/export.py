@@ -10,7 +10,10 @@ from uuid import uuid4
 from banc_explorer import __version__
 from banc_explorer.data.downloader import sha256
 from banc_explorer.models import PathResult
+from banc_explorer.morphology.context import fetch_context
 from banc_explorer.morphology.models import (
+    ContextGeometry,
+    ContextReference,
     SceneManifest,
     SkeletonGeometry,
     SkeletonReference,
@@ -54,6 +57,7 @@ def export_scene(
     *,
     offline: bool = False,
     nm_per_world_unit: float = 10000,
+    include_context: bool = False,
 ) -> SkeletonScene:
     if directory.exists():
         raise ValueError(f"Output already exists: {directory}. Choose a new scene directory.")
@@ -61,6 +65,7 @@ def export_scene(
     original = path_file.read_bytes()
     result = PathResult.model_validate_json(original)
     CoordinateTransform(origin_nm=(0, 0, 0), nm_per_world_unit=nm_per_world_unit)
+    outlines = fetch_context(cache, offline=offline) if include_context else []
     skeletons = []
     remaining = MAX_SCENE_SOURCE_BYTES
     for neuron in result.neurons:
@@ -111,14 +116,45 @@ def export_scene(
                 )
             )
         lower, upper = bounds(world_points)
+        context = []
+        if outlines:
+            (stage / "context").mkdir()
+        for outline in outlines:
+            geometry = ContextGeometry(
+                region_id=outline["region_id"],
+                points=[transform.forward(p) for p in outline["points_nm"]],
+                triangles=outline["triangles"],
+            )
+            relative = f"context/{geometry.region_id}.json"
+            (stage / relative).write_text(geometry.model_dump_json() + "\n", encoding="utf-8")
+            context_lower, context_upper = bounds(geometry.points)
+            context.append(
+                ContextReference(
+                    region_id=geometry.region_id,
+                    label=outline["label"],
+                    geometry=relative,
+                    geometry_sha256=sha256(stage / relative),
+                    vertex_count=len(geometry.points),
+                    triangle_count=len(geometry.triangles),
+                    bounds_min=context_lower,
+                    bounds_max=context_upper,
+                    sources=[source_file(r) for r in outline["receipts"]],
+                )
+            )
         scene = SkeletonScene(
+            schema_version=2 if context else 1,
+            context=context,
             path_result=result,
             neurons=references,
             coordinate_transform=transform,
             bounds_min=lower,
             bounds_max=upper,
         )
-        (stage / "path.json").write_text(scene.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        # Keep v1 outputs readable by earlier Python readers with extra='forbid'.
+        (stage / "path.json").write_text(
+            scene.model_dump_json(indent=2, exclude={"context"} if not context else None) + "\n",
+            encoding="utf-8",
+        )
         (stage / "graph-path.json").write_bytes(original)
         manifest = SceneManifest(
             scene_sha256=sha256(stage / "path.json"),
@@ -158,6 +194,7 @@ def load_scene(directory: Path) -> tuple[SkeletonScene, list[SkeletonGeometry]]:
     )
     if graph_path != scene.path_result:
         raise ValueError("Scene and original graph path disagree.")
+    load_context(directory, scene)
     geometries = []
     for reference in scene.neurons:
         path = safe_file(directory, reference.skeleton)
@@ -178,3 +215,27 @@ def load_scene(directory: Path) -> tuple[SkeletonScene, list[SkeletonGeometry]]:
     ):
         raise ValueError("Skeleton coordinates disagree with scene bounds.")
     return scene, geometries
+
+
+def load_context(directory: Path, scene: SkeletonScene) -> list[ContextGeometry]:
+    result = []
+    for reference in scene.context:
+        path = safe_file(directory, reference.geometry)
+        if sha256(path) != reference.geometry_sha256:
+            raise ValueError(f"Outline integrity check failed: {reference.geometry}.")
+        geometry = ContextGeometry.model_validate_json(path.read_bytes())
+        lower, upper = bounds(geometry.points)
+        if (
+            geometry.region_id != reference.region_id
+            or len(geometry.points) != reference.vertex_count
+            or len(geometry.triangles) != reference.triangle_count
+            or any(
+                not math.isclose(a, b, abs_tol=1e-9)
+                for a, b in zip(
+                    lower + upper, reference.bounds_min + reference.bounds_max, strict=True
+                )
+            )
+        ):
+            raise ValueError("Outline identity, counts or bounds disagree with scene.")
+        result.append(geometry)
+    return result

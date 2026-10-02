@@ -32,6 +32,19 @@ func run() -> void:
 	check(app.view_container.size.y > 400, "3D viewport retains usable height")
 	check(app.play_button.size.y < 80, "Playback controls do not expand from wrapped labels")
 	check(size == app.bundle.scene.path_result.neurons.size(), "One mesh node per neuron")
+	check(app.context_meshes.size() == app.bundle.context.size(), "One mesh per outline")
+	if not app.context_meshes.is_empty():
+		var path_center: Vector3 = app.camera.center
+		app.context_toggle.button_pressed = false
+		check(not app.context_meshes[0].visible, "Hide spatial context")
+		app.context_fit.pressed.emit()
+		check(app.context_meshes[0].visible and app.context_toggle.button_pressed, "Fit context shows outlines")
+		check(app.camera.radius > 0 and app.camera.size > 0, "Context camera bounds")
+		app.fit_path()
+		check(app.camera.center.is_equal_approx(path_center), "Restore path camera after context view")
+		check("independent of v888" in app.context_label.text, "Context release distinction remains visible")
+	else:
+		check(app.context_toggle.disabled and app.context_fit.disabled, "Old bundles disable absent context controls")
 	var total_branches := 0
 	for i in size:
 		var geometry: Dictionary = app.bundle.geometries[i]
@@ -136,6 +149,8 @@ func run() -> void:
 			check(false, "Screenshots require a display renderer")
 		else:
 			app.show_all.button_pressed = true
+			if "--fit-context" in args:
+				app.fit_context()
 			await process_frame
 			await process_frame
 			await RenderingServer.frame_post_draw

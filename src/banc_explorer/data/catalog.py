@@ -10,13 +10,14 @@ class Asset:
     category: str
     remote_directory: str = "compiled_data/banc_888"
     materialization: int | None = 888
+    cache_filename: str | None = None
 
     @property
     def url(self) -> str:
         return f"{BUCKET}/{self.remote_directory}/{self.filename}"
 
     def local_path(self, cache: Path) -> Path:
-        return cache / self.category / self.filename
+        return cache / self.category / (self.cache_filename or self.filename)
 
 
 METADATA = Asset("banc_888_meta.feather", "metadata")

@@ -14,6 +14,8 @@ LIMIT = 1_000_000_000
 
 
 def recovery_command(asset: Asset) -> str:
+    if asset.category == "context":
+        return "morphology context-fetch"
     if asset.category == "skeletons":
         return f"morphology fetch --id {asset.filename.split('_')[0]}"
     return "data prepare"

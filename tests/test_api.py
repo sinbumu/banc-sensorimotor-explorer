@@ -245,3 +245,19 @@ def test_godot_search_compute_and_scene_switch_over_http(local_service):
         thread.join(timeout=10)
         listener.close()
     assert not thread.is_alive()
+
+
+def test_optional_context_job_and_missing_cache_recovery(client, synthetic_context, monkeypatch):
+    job = complete_job(client, include_context=True)
+    assert job["status"] == "complete", job
+    for result in job["results"].values():
+        scene, _ = load_scene(Path(result["scene_directory"]))
+        assert scene.schema_version == 2 and len(scene.context) == 2
+
+    def missing(*args, **kwargs):
+        assert kwargs["offline"]
+        raise ValueError("Missing outline cache. Run morphology context-fetch.")
+
+    monkeypatch.setattr("banc_explorer.morphology.export.fetch_context", missing)
+    assert complete_job(client, include_context=True)["error_code"] == "data_error"
+    assert complete_job(client)["status"] == "complete"

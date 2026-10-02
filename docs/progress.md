@@ -127,11 +127,43 @@ Phase 4:
 - Python CI now installs the API extra. Godot's 15 optional integration tests are
   still local-only unless a CI runner supplies GODOT_BIN.
 
-Known limitations: no CNS outline, meshes, synapse positions, raw EM, side-by-side
+Phase 4 checkpoint `f05dd0f` pushed to `origin/main`; GitHub Actions passed.
+
+Known limitations: no neuron meshes, synapse positions, raw EM, side-by-side
 cameras or UI neuron removal. v2 is covered by synthetic tests but not live-validated.
 The morphology provider has no automatic L2/legacy fallback. Equal-cost ties can
 vary with igraph version. Server jobs finish even if the viewer closes; generated
 output cleanup remains explicit. Restart the API after replacing source caches.
 
-Next milestone: selected Phase 5 scientific detail, starting with spatial CNS
-context if the official outlines can be imported within the existing data limits.
+Phase 5 — selected scientific detail (neuropil spatial context):
+
+- Verified official `region_outlines/` labels 3/4 (brain/VNC neuropil), legacy
+  Neuroglancer binary layout and global-nm units. Parsed 6,722 vertices / 13,555
+  triangles with no new dependency. These assets have independent unversioned
+  provenance; they are not relabeled as v888 materialization data.
+- Six bounded catalog/label/manifest/fragment files cached: 258,825 bytes excluding
+  receipts. GCS stored fragment sizes total 148,323 bytes (gzip); returned fragment
+  payloads were decompressed. Transfer/decompression capped at 5 MB/file. No neuron
+  meshes, synapse table, EM, full atlas or bucket mirror downloaded.
+- CLI `morphology context-fetch` and `scene export --include-context`; API/UI option
+  for two context outlines, off by default. Offline runs only reuse verified caches.
+- Scene schema 2 adds independently hashed context geometry with exact labels,
+  counts, bounds and source receipts. Original schema 1 inputs are still accepted;
+  exports without context retain the original shape for older Python readers.
+- Godot batches two translucent surfaces and supports visibility toggle, Fit context
+  and Fit path. Picking/playback still operates only on the selected neurons.
+- Real three-neuron scene rendered on RTX 5070 Laptop GPU: 60,659 SWC points plus
+  the two outlines. A real offline API job `5309260165d94ad88c308eee6cf803e1` computed
+  and switched both modes with context; 22 automated UI/API checks passed. A separate
+  GPU viewer check passed 43 checks. Screenshots were visually inspected; these are
+  app-input automation checks, not manually driven OS mouse tests.
+- Regression tests found and fixed Godot JSON float vs integer array-membership
+  behavior in schema selection. Contracts still reject unsupported versions,
+  unsafe paths, bad checksums, invalid triangles and false v888 context provenance.
+- Current phase scope is complete with 109 Python/engine tests, Ruff and repository
+  audit passing. The package version is 0.5.0. Documentation: `docs/context.md`;
+  screenshot: `docs/images/context-demo.png`; generated files remain ignored.
+
+Next milestone: investigate bounded, version-consistent selected-synapse evidence
+and official EM ROI access before implementing Phase 6. Full synapse/EM downloads
+remain prohibited without explicit approval; outlines do not provide synapse positions.

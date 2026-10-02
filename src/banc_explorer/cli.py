@@ -93,6 +93,21 @@ def morphology_fetch(
     console.print(str(skeleton(neuron_id).local_path(settings.cache_dir).resolve()), markup=False)
 
 
+@morphology_app.command("context-fetch")
+@friendly
+def context_fetch(config: Config = None, offline: bool = False, refresh: bool = False):
+    """Cache two public neuropil outlines, independent of v888 materialization."""
+    from banc_explorer.morphology.context import fetch_context
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    cache = load_settings(config).cache_dir
+    for item in fetch_context(cache, offline=offline, refresh=refresh):
+        console.print(
+            f"{item['label']}: {len(item['points_nm'])} vertices / {len(item['triangles'])} triangles; source nm; unversioned context"
+        )
+    console.print(str((cache / "context").resolve()), markup=False)
+
+
 @scene_app.command("export")
 @friendly
 def scene_export(
@@ -101,6 +116,7 @@ def scene_export(
     config: Config = None,
     offline: bool = False,
     nm_per_world_unit: float = 10000,
+    include_context: bool = False,
 ):
     """Export selected v888 skeletons with one common coordinate transform."""
     from banc_explorer.morphology.export import export_scene
@@ -113,6 +129,7 @@ def scene_export(
         load_settings(config).cache_dir,
         offline=offline,
         nm_per_world_unit=nm_per_world_unit,
+        include_context=include_context,
     )
     console.print(
         f"BANC v888 scene: {len(result.neurons)} neurons; "

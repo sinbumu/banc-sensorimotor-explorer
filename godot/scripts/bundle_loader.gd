@@ -1,5 +1,5 @@
 extends RefCounted
-## Offline reader for Python's skeleton_scene v1 contract. Never converts root IDs to numbers.
+## Offline reader for skeleton_scene v1/v2. Never converts root IDs to numbers.
 
 const MAX_FILE_BYTES = 128 * 1024 * 1024
 const MAX_BUNDLE_BYTES = 256 * 1024 * 1024
@@ -13,7 +13,7 @@ func fail(message: String) -> Dictionary:
 	return {}
 
 
-func read_json(path: String, digest: String = "") -> Dictionary:
+func read_json(path: String, digest: String = "", versions: Array = [1]) -> Dictionary:
 	if not FileAccess.file_exists(path):
 		return fail("Missing file: " + path)
 	var file := FileAccess.open(path, FileAccess.READ)
@@ -29,8 +29,9 @@ func read_json(path: String, digest: String = "") -> Dictionary:
 	if parser.parse(file.get_as_text()) != OK or not parser.data is Dictionary:
 		return fail("Invalid JSON object: " + path)
 	var value: Dictionary = parser.data
-	if value.get("schema_version") != 1:
-		return fail("Unsupported schema_version in " + path + "; this viewer requires 1.")
+	# JSON numbers are floats; Array.has uses stricter type matching than ==.
+	if not integer(value.get("schema_version"), 1) or not versions.has(int(value.schema_version)):
+		return fail("Unsupported schema_version in " + path + "; supported: " + str(versions))
 	return value
 
 
@@ -76,7 +77,7 @@ func load_bundle(directory: String) -> Dictionary:
 	for key in ["scene_sha256", "graph_path_sha256"]:
 		if not manifest.get(key) is String or manifest[key].length() != 64:
 			return fail("Missing manifest checksum: " + key)
-	var scene := read_json(directory.path_join("path.json"), manifest.scene_sha256)
+	var scene := read_json(directory.path_join("path.json"), manifest.scene_sha256, [1, 2])
 	if not error.is_empty():
 		return {}
 	var graph := read_json(directory.path_join("graph-path.json"), manifest.graph_path_sha256)
@@ -125,7 +126,76 @@ func load_bundle(directory: String) -> Dictionary:
 		if total_points > MAX_POINTS:
 			return fail("Scene exceeds viewer budget of 1,000,000 points.")
 		geometries.append(geometry)
-	return {"scene": scene, "geometries": geometries, "directory": directory}
+	var context := load_context(directory, scene)
+	if not error.is_empty():
+		return {}
+	return {"scene": scene, "geometries": geometries, "context": context, "directory": directory}
+
+
+func load_context(directory: String, scene: Dictionary) -> Array:
+	var references: Variant = scene.get("context", [])
+	if not references is Array or (scene.schema_version == 1 and not references.is_empty()) or (scene.schema_version == 2 and references.size() != 2):
+		fail("Invalid context for scene schema version.")
+		return []
+	var outlines: Array = []
+	for i in references.size():
+		var ref: Variant = references[i]
+		var id := str(i + 3)
+		var expected := "context/" + id + ".json"
+		var label := "BANC_brain_neuropil" if i == 0 else "BANC_vnc_neuropil"
+		if not ref is Dictionary or ref.get("region_id") != id or ref.get("label") != label or ref.get("geometry") != expected:
+			fail("Unsafe or inconsistent outline reference.")
+			return []
+		if ref.get("provider") != "banc_public_region_outlines" or ref.get("source_units") != "nm" or not ref.has("source_materialization") or ref.source_materialization != null:
+			fail("Outline must retain its independent, unversioned source provenance.")
+			return []
+		if not ref.get("sources") is Array or ref.sources.size() != 4:
+			fail("Missing outline source receipts.")
+			return []
+		for source in ref.sources:
+			if not source is Dictionary or not source.get("url") is String or not source.get("sha256") is String or source.sha256.length() != 64 or not integer(source.get("bytes"), 1):
+				fail("Invalid outline source receipt.")
+				return []
+		if not ref.get("geometry_sha256") is String or ref.geometry_sha256.length() != 64:
+			fail("Missing outline checksum.")
+			return []
+		var geometry := read_json(directory.path_join(expected), ref.geometry_sha256)
+		if not error.is_empty():
+			return []
+		if not validate_context(geometry, ref):
+			fail("Invalid outline geometry, indices or bounds.")
+			return []
+		outlines.append(geometry)
+	return outlines
+
+
+func validate_context(geometry: Dictionary, ref: Dictionary) -> bool:
+	if geometry.get("artifact_type") != "neuropil_outline" or geometry.get("region_id") != ref.region_id or geometry.get("units") != "godot_unit":
+		return false
+	if not integer(ref.get("vertex_count"), 3) or ref.vertex_count > 100000 or not integer(ref.get("triangle_count"), 1) or ref.triangle_count > 200000:
+		return false
+	if not geometry.get("points") is Array or geometry.points.size() != ref.vertex_count or not geometry.get("triangles") is Array or geometry.triangles.size() != ref.triangle_count:
+		return false
+	if not vector(ref.get("bounds_min")) or not vector(ref.get("bounds_max")):
+		return false
+	var lower := Vector3(INF, INF, INF)
+	var upper := -lower
+	for value in geometry.points:
+		if not vector(value):
+			return false
+		lower = lower.min(point(value))
+		upper = upper.max(point(value))
+	if not lower.is_equal_approx(point(ref.bounds_min)) or not upper.is_equal_approx(point(ref.bounds_max)):
+		return false
+	for face in geometry.triangles:
+		if not face is Array or face.size() != 3:
+			return false
+		for index in face:
+			if not integer(index) or index >= ref.vertex_count:
+				return false
+		if face[0] == face[1] or face[1] == face[2] or face[0] == face[2]:
+			return false
+	return true
 
 
 func validate_graph(graph: Dictionary) -> bool:

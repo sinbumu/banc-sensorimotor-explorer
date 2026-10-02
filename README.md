@@ -3,13 +3,17 @@
 A local research prototype for exploring graph-theoretic sensory-to-motor paths
 in the adult female Drosophila BANC brain-and-nerve-cord connectome.
 
-**Current milestone: Phase 4 — integrated local Godot explorer.**
+**Current milestone: Phase 5 — optional brain/VNC spatial context.**
 Public data preparation, candidate lookup, minimum-hop and normalized-strength
 paths, provenance-bearing JSON, and real SWC scene exports work. Godot displays
 selected reconstructed neurons with orbit/pan/zoom, selection metadata, real edge
 values and illustrative activation playback. The optional localhost API lets you
 search/select sensory and motor neurons, calculate both path modes, and reload
-their 3D scenes directly from Godot. The file-only workflow remains available.
+their 3D scenes directly from Godot. Optional public neuropil outlines now provide
+spatial context with independent source provenance. The file-only workflow remains available.
+
+See [brain/VNC context setup, provenance and screenshot](docs/context.md) for
+`morphology context-fetch`, `scene export --include-context`, and the UI controls.
 
 ## Setup (PowerShell)
 
@@ -175,7 +179,7 @@ Open the connected viewer from another terminal:
 ```
 
 In **Explore**, search and choose a sensory source and motor target, adjust the
-threshold, then click **Find path**. Enable **Fetch missing skeletons** when a new
+threshold, then click **Find path**. Enable **Fetch missing scene assets** when a new
 path needs selected SWCs, or use `serve --offline` for a completely cached demo.
 Switch the mode dropdown to compare the generated scenes; costs are labeled by
 their distinct graph objectives. The previous scene stays visible on errors.

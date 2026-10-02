@@ -65,3 +65,10 @@ publication and cleanup on failure.
 
 No global installation, hosted service or optional live-data dependency is needed.
 The workspace's `.tools` uv installation and `.venv` are ignored local tooling.
+
+Phase 5 adds a narrowly scoped public legacy-mesh reader for two BANC neuropil
+outlines, without new dependencies. These unversioned assets keep separate source
+receipts and share the path coordinate transform. Scene schema 2 carries optional
+context geometry; schema 1 outputs/readers remain supported. Godot renders two
+batched translucent surfaces with independent context/path camera fitting. See
+[context.md](context.md) for provenance, format and limits.

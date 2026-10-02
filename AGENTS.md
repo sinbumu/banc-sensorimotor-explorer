@@ -157,6 +157,13 @@ Use this versioned source for scene exports. The legacy `swcs-from-pcg-skel`
 sample used micrometers and did not contain the demo motor's v888 ID. Do not
 silently fall back to legacy IDs/units; see `docs/morphology.md` for evidence.
 
+Verified during Phase 5: optional `region_outlines/` IDs 3/4 are public brain/VNC
+neuropil legacy meshes in global nm coordinates. They are not v888 materialization
+assets: keep `source_materialization: null`, separate source receipts, and visible
+context provenance. Reuse the common path transform; never scale these positions
+by the segmentation voxel resolution. See `docs/context.md`. Only these two
+outlines are fetched by the current provider, explicitly enabled by CLI/API.
+
 Approximate sizes can change and must not be treated as schema invariants. At the time this document was prepared:
 
 - metadata: ~49 MB;

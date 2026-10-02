@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 from pydantic import Field, model_validator
 
 from banc_explorer.models import Contract, NeuronId, PathResult, SourceFile
+from banc_explorer.morphology.context import MAX_TRIANGLES, MAX_VERTICES, REGIONS
 from banc_explorer.morphology.swc import validate_parents
 from banc_explorer.morphology.transforms import CoordinateTransform, Vector3
 
@@ -48,8 +49,49 @@ class SkeletonReference(Contract):
     provider: Literal["banc_v888_full_swc"] = "banc_v888_full_swc"
 
 
-class SkeletonScene(Contract):
+class ContextGeometry(Contract):
     schema_version: Literal[1] = 1
+    artifact_type: Literal["neuropil_outline"] = "neuropil_outline"
+    region_id: Literal["3", "4"]
+    units: Literal["godot_unit"] = "godot_unit"
+    points: list[Vector3] = Field(min_length=3, max_length=MAX_VERTICES)
+    triangles: list[tuple[Index, Index, Index]] = Field(min_length=1, max_length=MAX_TRIANGLES)
+
+    @model_validator(mode="after")
+    def check_indices(self):
+        if any(max(face) >= len(self.points) or len(set(face)) != 3 for face in self.triangles):
+            raise ValueError("Invalid outline triangle indices.")
+        return self
+
+
+class ContextReference(Contract):
+    region_id: Literal["3", "4"]
+    label: str
+    geometry: str = Field(pattern=r"^context/[34]\.json$")
+    geometry_sha256: Digest
+    vertex_count: int = Field(ge=3, le=MAX_VERTICES)
+    triangle_count: int = Field(ge=1, le=MAX_TRIANGLES)
+    bounds_min: Vector3
+    bounds_max: Vector3
+    source_units: Literal["nm"] = "nm"
+    source_materialization: None = None
+    provider: Literal["banc_public_region_outlines"] = "banc_public_region_outlines"
+    sources: list[SourceFile] = Field(min_length=4, max_length=4)
+
+    @model_validator(mode="after")
+    def check_reference(self):
+        if (
+            self.label != REGIONS[self.region_id]
+            or self.geometry != f"context/{self.region_id}.json"
+        ):
+            raise ValueError("Outline identity/label/reference mismatch.")
+        if any(a > b for a, b in zip(self.bounds_min, self.bounds_max, strict=True)):
+            raise ValueError("Invalid outline bounds.")
+        return self
+
+
+class SkeletonScene(Contract):
+    schema_version: Literal[1, 2] = 1
     artifact_type: Literal["skeleton_scene"] = "skeleton_scene"
     path_result: PathResult
     neurons: list[SkeletonReference] = Field(min_length=1)
@@ -57,9 +99,16 @@ class SkeletonScene(Contract):
     bounds_min: Vector3
     bounds_max: Vector3
     simplification: Literal["none"] = "none"
+    context: list[ContextReference] = Field(default_factory=list, max_length=2)
 
     @model_validator(mode="after")
     def check_references(self):
+        if self.schema_version == 1 and self.context:
+            raise ValueError("Context requires scene schema version 2.")
+        if self.schema_version == 2 and [c.region_id for c in self.context] != ["3", "4"]:
+            raise ValueError(
+                "Scene version 2 requires the brain and VNC outlines in catalog order."
+            )
         if [n.id for n in self.neurons] != [n.id for n in self.path_result.neurons]:
             raise ValueError("Scene neuron order must match graph path.")
         for order, neuron in enumerate(self.neurons):
