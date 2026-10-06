@@ -16,6 +16,9 @@ from banc_explorer.morphology.export import load_scene, safe_file, staging_direc
 from banc_explorer.morphology.models import Digest
 from banc_explorer.morphology.transforms import Vector3
 
+MORPHOLOGY_CONTEXT = "Morphology-point image context; not a verified synapse location."
+SYNAPSE_CONTEXT = "Predicted-synapse image context; contact identity is not independently verified."
+
 
 class MorphologyPoint(Contract):
     kind: Literal["swc_node"] = "swc_node"
@@ -27,27 +30,54 @@ class MorphologyPoint(Contract):
     skeleton_source: SourceFile
 
 
+class SynapsePoint(Contract):
+    kind: Literal["predicted_synapse"] = "predicted_synapse"
+    dataset: Literal["BANC"] = "BANC"
+    materialization: Literal[888] = 888
+    connectivity_version: Literal["v2", "v3"]
+    table: Literal["synapses_v2", "synapses_v3"]
+    synapse_id: NeuronId
+    pre: NeuronId
+    post: NeuronId
+    center_nm: Vector3
+    coordinate_field: Literal["ctr_pt_position"] = "ctr_pt_position"
+    evidence_sha256: Digest
+    path_sha256: Digest
+    query_source: SourceFile
+
+    @model_validator(mode="after")
+    def check_source(self):
+        from banc_explorer.synapses.evidence import query_suffix
+        from banc_explorer.synapses.transport import BASE as CAVE_BASE
+
+        if (
+            self.table != f"synapses_{self.connectivity_version}"
+            or self.pre == self.post
+            or self.query_source.url != CAVE_BASE + query_suffix(self.table)
+        ):
+            raise ValueError("Inconsistent synapse point source/version.")
+        return self
+
+
 class SliceReference(Contract):
     file: str = Field(pattern=r"^slices/[0-9]{3}\.png$")
     sha256: Digest
 
 
 class RoiManifest(Contract):
-    schema_version: Literal[1] = 1
+    schema_version: Literal[1, 2] = 1
     artifact_type: Literal["em_roi"] = "em_roi"
     image_source: Literal[BASE] = BASE
     image_materialization: None = None
     request: RoiRequest
-    point: MorphologyPoint
+    point: MorphologyPoint | SynapsePoint = Field(discriminator="kind")
     origin_voxels: tuple[int, int, int]
     resolution_nm: Vector3
     scale_key: str
     array_order: Literal["zyx"] = "zyx"
     pixel_type: Literal["uint8"] = "uint8"
     image_encoding: Literal["jpeg-derived"] = "jpeg-derived"
-    interpretation: Literal["Morphology-point image context; not a verified synapse location."] = (
-        "Morphology-point image context; not a verified synapse location."
-    )
+    interpretation: Literal[MORPHOLOGY_CONTEXT, SYNAPSE_CONTEXT] = MORPHOLOGY_CONTEXT
     source_info: dict
     source_ranges: list[dict] = Field(min_length=1, max_length=200)
     downloaded_bytes: int = Field(ge=0, le=32_000_000)
@@ -57,6 +87,11 @@ class RoiManifest(Contract):
 
     @model_validator(mode="after")
     def check_coordinates(self):
+        synapse = isinstance(self.point, SynapsePoint)
+        if self.schema_version != (2 if synapse else 1) or self.interpretation != (
+            SYNAPSE_CONTEXT if synapse else MORPHOLOGY_CONTEXT
+        ):
+            raise ValueError("EM schema/interpretation disagrees with point provenance.")
         resolution = (8 * 2**self.request.mip, 8 * 2**self.request.mip, 45)
         origin = tuple(
             math.floor(c / r) - n // 2
@@ -98,9 +133,31 @@ def point_from_scene(directory: Path, neuron_id: int, node_id: str) -> Morpholog
     raise ValueError("Neuron is not present in this scene.")
 
 
+def point_from_evidence(directory: Path, synapse_id: str) -> SynapsePoint:
+    from banc_explorer.models import parse_id
+    from banc_explorer.synapses.evidence import load_evidence
+
+    evidence = load_evidence(directory)
+    selected_id = parse_id(synapse_id)
+    for row in evidence.rows:
+        if row.id == selected_id:
+            return SynapsePoint(
+                connectivity_version=evidence.connectivity_version,
+                table=evidence.table,
+                synapse_id=row.id,
+                pre=evidence.pre,
+                post=evidence.post,
+                center_nm=row.center_nm,
+                evidence_sha256=sha256(directory / "evidence.json"),
+                path_sha256=evidence.path_sha256,
+                query_source=evidence.receipts[-1],
+            )
+    raise ValueError("Synapse ID is not present in the validated evidence subset.")
+
+
 def export_roi(
     provider: EmProvider,
-    point: MorphologyPoint,
+    point: MorphologyPoint | SynapsePoint,
     directory: Path,
     *,
     size_voxels=(256, 256, 32),
@@ -128,6 +185,10 @@ def export_roi(
             Image.fromarray(pixels).save(stage / name)
             slices.append(SliceReference(file=name, sha256=sha256(stage / name)))
         manifest = RoiManifest(
+            schema_version=2 if isinstance(point, SynapsePoint) else 1,
+            interpretation=SYNAPSE_CONTEXT
+            if isinstance(point, SynapsePoint)
+            else MORPHOLOGY_CONTEXT,
             request=request,
             point=point,
             origin_voxels=volume.origin_voxels,

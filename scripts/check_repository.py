@@ -7,7 +7,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_BYTES = 2_000_000
-FORBIDDEN_DIRS = {".cache", ".tools", ".venv", ".godot", ".aws", ".cave", "__pycache__"}
+FORBIDDEN_DIRS = {
+    ".cache",
+    ".tools",
+    ".venv",
+    ".godot",
+    ".aws",
+    ".cave",
+    ".cloudvolume",
+    "__pycache__",
+}
 DATA_EXTENSIONS = {
     ".feather",
     ".parquet",
@@ -63,7 +72,8 @@ def audit(staged=False):
         if (
             path.suffix.lower() in SECRET_EXTENSIONS
             or path.name.startswith(".env")
-            or path.name in {"cave-secret.json", "export_credentials.cfg"}
+            or path.name.endswith("cave-secret.json")
+            or path.name in {"chunkedgraph-secret.json", "export_credentials.cfg"}
         ):
             reasons.append("credential filename")
         if len(content) > MAX_BYTES:

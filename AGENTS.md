@@ -1622,6 +1622,17 @@ Parquet layout required approximately 7.76 GB even for projected columns after
 row-group pruning, so that scan was not performed. This detail-mode limitation
 does not block Phase 7's graph interventions.
 
+Phase 6B adds a bounded optional CAVE REST provider and a file-based evidence →
+predicted-synapse EM workflow. Use only materialization 888 and the matching
+detector table; verify table availability and nm response units at runtime. Limits:
+one directed pair, 1,000 rows plus a sentinel, 2.3 MB total response bodies, no
+pagination, no table fallback, and no credential logging or redirects. Preserve
+static-count discrepancies. Standard local CAVE files or BANC_CAVE_TOKEN are
+optional; core analysis remains anonymous. Godot opens schema-2 synapse stacks;
+schema 1 remains morphology-point context. Synthetic tests do not establish live
+BANC access or contact identity. See `docs/synapses.md`; full Phase 6 is still
+pending authenticated real-data verification and visual inspection.
+
 ---
 
 ## Phase 7 — Intervention Playground

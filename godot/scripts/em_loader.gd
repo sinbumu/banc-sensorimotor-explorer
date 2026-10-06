@@ -17,19 +17,33 @@ func load_roi(directory: String) -> Dictionary:
 	var file := FileAccess.open(directory.path_join("roi.json"), FileAccess.READ)
 	if file == null or file.get_length() > 1000000:
 		return fail("Missing or oversized EM manifest.")
-	var manifest := helper.read_json(directory.path_join("roi.json"))
+	var manifest := helper.read_json(directory.path_join("roi.json"), "", [1, 2])
 	if not helper.error.is_empty():
 		return fail(helper.error)
 	if manifest.get("artifact_type") != "em_roi" or manifest.get("image_source") != SOURCE or not manifest.has("image_materialization") or manifest.image_materialization != null or manifest.get("array_order") != "zyx" or manifest.get("pixel_type") != "uint8" or manifest.get("image_encoding") != "jpeg-derived":
 		return fail("Unsupported EM source/contract.")
 	var request: Variant = manifest.get("request")
 	var point: Variant = manifest.get("point")
-	if not request is Dictionary or not point is Dictionary or point.get("kind") != "swc_node" or point.get("dataset") != "BANC" or point.get("materialization") != 888 or not helper.decimal_id(point.get("neuron_id")) or not helper.decimal_id(point.get("swc_node_id"), true):
-		return fail("Invalid EM morphology-point provenance.")
-	if manifest.get("interpretation") != "Morphology-point image context; not a verified synapse location.":
-		return fail("Missing EM interpretation.")
-	if not point.get("skeleton_source") is Dictionary or not point.skeleton_source.get("sha256") is String or point.skeleton_source.sha256.length() != 64:
-		return fail("Missing SWC source hash.")
+	if not request is Dictionary or not point is Dictionary or point.get("dataset") != "BANC" or point.get("materialization") != 888:
+		return fail("Invalid EM point provenance.")
+	if manifest.schema_version == 1:
+		if point.get("kind") != "swc_node" or not helper.decimal_id(point.get("neuron_id")) or not helper.decimal_id(point.get("swc_node_id"), true):
+			return fail("Invalid EM morphology-point provenance.")
+		if manifest.get("interpretation") != "Morphology-point image context; not a verified synapse location.":
+			return fail("Missing EM interpretation.")
+		if not point.get("skeleton_source") is Dictionary or not digest(point.skeleton_source.get("sha256")):
+			return fail("Missing SWC source hash.")
+	else:
+		if point.get("kind") != "predicted_synapse" or not helper.decimal_id(point.get("synapse_id")) or not helper.decimal_id(point.get("pre")) or not helper.decimal_id(point.get("post")) or point.pre == point.post:
+			return fail("Invalid EM synapse provenance.")
+		if point.get("connectivity_version") not in ["v2", "v3"] or point.get("table") != "synapses_" + str(point.connectivity_version) or point.get("coordinate_field") != "ctr_pt_position":
+			return fail("Invalid EM synapse version/coordinates.")
+		var source: Variant = point.get("query_source")
+		var expected_url: String = "https://cave.fanc-fly.com/materialize/api/v3/datastack/brain_and_nerve_cord/version/888/table/%s/query?return_pyarrow=false&split_positions=false" % point.table
+		if not source is Dictionary or source.get("url") != expected_url or not digest(source.get("sha256")) or not helper.integer(source.get("bytes"), 1) or not digest(point.get("evidence_sha256")) or not digest(point.get("path_sha256")):
+			return fail("Missing EM synapse evidence hashes/source.")
+		if manifest.get("interpretation") != "Predicted-synapse image context; contact identity is not independently verified.":
+			return fail("Missing EM interpretation.")
 	var dimensions: Variant = request.get("size_voxels")
 	if not dimensions is Array or dimensions.size() != 3 or not helper.integer(request.get("mip")) or request.mip > 6:
 		return fail("Invalid EM dimensions/scale.")
@@ -69,3 +83,12 @@ func load_roi(directory: String) -> Dictionary:
 
 func be32(data: PackedByteArray, offset: int) -> int:
 	return (int(data[offset]) << 24) | (int(data[offset + 1]) << 16) | (int(data[offset + 2]) << 8) | int(data[offset + 3])
+
+
+func digest(value: Variant) -> bool:
+	if not value is String or value.length() != 64:
+		return false
+	for character in value:
+		if character not in "0123456789abcdef":
+			return false
+	return true

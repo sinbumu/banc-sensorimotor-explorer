@@ -36,6 +36,8 @@ scene_app = typer.Typer(no_args_is_help=True)
 app.add_typer(scene_app, name="scene")
 em_app = typer.Typer(no_args_is_help=True)
 app.add_typer(em_app, name="em")
+synapses_app = typer.Typer(no_args_is_help=True)
+app.add_typer(synapses_app, name="synapses")
 console = Console()
 Config = Annotated[Path | None, typer.Option(help="TOML configuration file.")]
 
@@ -50,6 +52,80 @@ def friendly(function):
             raise typer.Exit(1) from None
 
     return wrapped
+
+
+@synapses_app.command("fetch")
+@friendly
+def synapses_fetch(
+    path: Annotated[Path, typer.Option(help="Validated graph-path.json result.")],
+    output: Annotated[Path, typer.Option()],
+    edge_index: Annotated[int, typer.Option(min=0)] = 0,
+    limit: Annotated[int, typer.Option(min=1, max=1000)] = 250,
+):
+    """Query one directed edge in CAVE v888 using local credentials (max 2.3 MB)."""
+    from banc_explorer.synapses.evidence import CaveSynapseProvider, export_evidence
+
+    # Reject invalid local inputs before accessing any credential/network.
+    if output.exists() or path.stat().st_size > 2_000_000:
+        raise ValueError("Choose a new output directory and a graph path below 2 MB.")
+    result = PathResult.model_validate_json(path.read_bytes())
+    if edge_index >= len(result.edges):
+        raise ValueError("Edge index is outside this path (indices start at zero).")
+    console.print(
+        f"CAVE BANC v888 / {result.manifest.connectivity_version}; max 2.3 MB response data"
+    )
+    evidence = export_evidence(
+        CaveSynapseProvider(), path, output, edge_index=edge_index, limit=limit
+    )
+    show_evidence(evidence, output)
+
+
+def show_evidence(evidence, directory):
+    console.print(
+        f"{evidence.pre} -> {evidence.post}: {len(evidence.rows)} rows; "
+        f"static graph {evidence.graph_count}; count comparison: {evidence.count_comparison}"
+    )
+    console.print(evidence.interpretation)
+    console.print(str(directory.resolve()), markup=False)
+
+
+@synapses_app.command("validate")
+@friendly
+def synapses_validate(evidence: Annotated[Path, typer.Option()]):
+    """Validate a saved subset and its source graph offline; no credential required."""
+    from banc_explorer.synapses.evidence import load_evidence
+
+    show_evidence(load_evidence(evidence), evidence)
+
+
+@em_app.command("synapse")
+@friendly
+def em_synapse(
+    evidence: Annotated[Path, typer.Option()],
+    synapse_id: Annotated[str, typer.Option()],
+    output: Annotated[Path, typer.Option()],
+    config: Config = None,
+    size_xy: Annotated[int, typer.Option(min=1, max=256)] = 256,
+    depth: Annotated[int, typer.Option(min=1, max=64)] = 32,
+    mip: Annotated[int, typer.Option(min=0, max=6)] = 0,
+    offline: bool = False,
+):
+    """Inspect a predicted-synapse center from a validated CAVE subset in aligned EM."""
+    from banc_explorer.em.export import export_roi, point_from_evidence
+    from banc_explorer.em.provider import PublicEmProvider
+    from banc_explorer.em.transport import RangeCache
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    point = point_from_evidence(evidence, synapse_id)
+    transport = RangeCache(load_settings(config).cache_dir, offline=offline)
+    manifest = export_roi(
+        PublicEmProvider(transport), point, output, size_voxels=(size_xy, size_xy, depth), mip=mip
+    )
+    console.print(
+        f"EM stack: {len(manifest.slices)} slices; {manifest.downloaded_bytes:,} bytes fetched"
+    )
+    console.print(manifest.interpretation)
+    console.print(str(output.resolve()), markup=False)
 
 
 @app.command("serve")

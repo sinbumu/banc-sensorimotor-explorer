@@ -243,3 +243,47 @@ verified selective provider/subset; never silently scan the large table or
 substitute another detector version. Other limits: one comparison viewport,
 line skeletons rather than neuron meshes, no activity/phenotype prediction,
 and no live v2 validation beyond deterministic synthetic coverage.
+
+Phase 7 checkpoint `15aafa3` pushed to `origin/main`; GitHub Actions run
+`36967198373` passed on the Windows/Linux Python matrix.
+
+2026-10-06 — Phase 6B implementation checkpoint: optional CAVE synapse evidence
+
+- Added `synapses fetch` for one directed edge from a validated path, pinned to
+  BANC v888 and the matching v2/v3 detector. Runtime checks require valid snapshot,
+  table availability, native resolution and an explicit nm response header.
+  Query filters are checked again against every returned row, including a sentinel.
+- Default 250 / maximum 1,000 selected rows plus one sentinel; metadata/query
+  response bodies total at most 2.3 MB. No pagination, large Parquet scan, whole
+  download, live-version fallback, credential forwarding or new dependency.
+- Portable evidence includes the hashed source path, query, detector cutoff,
+  response receipts, exact string IDs and static-count comparison. Capped/warned
+  responses remain incomplete. Matching counts are not a claim of contact identity.
+  `synapses validate` and saved bundle reuse require no authentication.
+- Added `em synapse` and schema-2 predicted-synapse point provenance. Godot opens
+  these PNG stacks offline, labels the actual image's synapse/detector/endpoints,
+  and preserves the previous image on load failure. Schema-1 morphology-point
+  stacks and the existing SWC/API controls remain supported.
+- Added a hidden-input local setup helper and docs. Strengthened `.gitignore` and
+  Git audit for host-specific CAVE secrets, legacy credentials and `.cloudvolume/`.
+  User confirmed an account exists, but the live CLI found no supported local
+  credential. No authenticated query or real synapse-position result is claimed.
+- Examined the alternative 5.61 GB slim v3 Parquet using **6,741 bytes** of tail/footer
+  ranges only. Its four huge row groups and lack of column indexes do not support
+  a cheap selected-pair scan. Stored metadata probe: `.cache/phase6b-human-footer.parquet`.
+  Also read small public documentation/listings and official API sources. No
+  synapse rows, new morphology, mesh, EM pixels or dependencies were downloaded.
+- **198 tests passed** with Godot enabled; Ruff check/format and repository audit
+  passed. Includes CAVE bounds/filter/unit/version/credential errors, offline
+  integrity, CLI evidence → EM, both EM schemas, exact >2^53 IDs and Godot controls.
+  A separate RTX 5070 OpenGL run passed the synthetic synapse panel checks and its
+  screenshot was visually inspected (`generated/phase6b-visual/`, ignored).
+  This was automated app-input testing with clearly labeled synthetic data.
+- Version 0.8.0. Workflow and source references: `docs/synapses.md`. Generated
+  evidence/EM belong under `generated/`; existing EM range cache is reused.
+
+Next required step: configure the existing account locally, run the bounded query
+against an actual demo edge, verify deployed schema/counts/coordinates, and inspect
+the resulting real EM context. Full Phase 6 remains incomplete until this live
+validation succeeds. A future API/Godot query control should reuse the verified
+provider; the present checkpoint deliberately exposes the new fetch through CLI.

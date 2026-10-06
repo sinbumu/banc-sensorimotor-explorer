@@ -44,6 +44,9 @@ banc_*.csv
 *.p12
 *.pfx
 cave-secret.json
+*-cave-secret.json
+chunkedgraph-secret.json
+.cloudvolume/
 .cave/
 .aws/
 .codex/

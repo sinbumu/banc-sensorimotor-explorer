@@ -32,9 +32,9 @@ func text_label(value: String) -> Label:
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 6)
-	text_label("EM  /  SELECTED MORPHOLOGY POINT")
+	text_label("EM  /  POINT CONTEXT")
 	point_label = text_label("Select a neuron or click a skeleton point.")
-	text_label("Morphology point, not a verified synapse.\nJPEG-derived aligned EM.")
+	text_label("Inspect point uses a morphology node.\nOpen stack also accepts predicted synapses.")
 	downloads = CheckBox.new()
 	downloads.text = "Fetch missing EM ranges"
 	downloads.tooltip_text = "At most 32 MB per job; 256 × 256 × 32 voxels at 8 × 8 × 45 nm. No whole shard download."
@@ -152,14 +152,14 @@ func load_directory(directory: String, expected: Dictionary = {}) -> bool:
 	if loaded.is_empty():
 		message.text = loader.error
 		return false
-	if not expected.is_empty() and (loaded.manifest.point.neuron_id != expected.neuron_id or loaded.manifest.point.swc_node_id != expected.swc_node_id or loaded.manifest.point.skeleton_source.sha256 != expected.swc_sha256):
+	if not expected.is_empty() and (loaded.manifest.point.get("kind") != "swc_node" or loaded.manifest.point.get("neuron_id") != expected.neuron_id or loaded.manifest.point.get("swc_node_id") != expected.swc_node_id or loaded.manifest.point.skeleton_source.sha256 != expected.swc_sha256):
 		message.text = "EM result does not match the submitted SWC point."
 		return false
 	bundle = loaded
 	slice_slider.max_value = bundle.images.size() - 1
 	slice_slider.value = bundle.images.size() / 2
 	show_slice(slice_slider.value)
-	message.text = "Verified image stack · %d bytes fetched\nImage alignment v0 · SWC materialization v888" % bundle.manifest.downloaded_bytes
+	message.text = "Image checksums checked · %d bytes fetched\n%s" % [bundle.manifest.downloaded_bytes, bundle.manifest.interpretation]
 	return true
 
 
@@ -169,4 +169,9 @@ func show_slice(value: float) -> void:
 	var index := clampi(int(value), 0, bundle.images.size() - 1)
 	var manifest: Dictionary = bundle.manifest
 	image_view.texture = bundle.images[index]
-	image_label.text = "Image: %s / node %s\nXY %d / %d · z voxel %d · Δz %.0f nm\n%.0f × %.0f nm/px · X right, Y down" % [manifest.point.neuron_id, manifest.point.swc_node_id, index + 1, bundle.images.size(), manifest.origin_voxels[2] + index, manifest.resolution_nm[2], manifest.resolution_nm[0], manifest.resolution_nm[1]]
+	var identity: String
+	if manifest.point.kind == "predicted_synapse":
+		identity = "Predicted synapse %s · %s / v888\n%s → %s" % [manifest.point.synapse_id, manifest.point.connectivity_version, manifest.point.pre, manifest.point.post]
+	else:
+		identity = "%s / node %s" % [manifest.point.neuron_id, manifest.point.swc_node_id]
+	image_label.text = "Image: %s\nXY %d / %d · z voxel %d · Δz %.0f nm\n%.0f × %.0f nm/px · X right, Y down" % [identity, index + 1, bundle.images.size(), manifest.origin_voxels[2] + index, manifest.resolution_nm[2], manifest.resolution_nm[0], manifest.resolution_nm[1]]

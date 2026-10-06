@@ -3,7 +3,7 @@
 A local research prototype for exploring graph-theoretic sensory-to-motor paths
 in the adult female Drosophila BANC brain-and-nerve-cord connectome.
 
-**Current milestone: Phase 7 — graph interventions and before/after comparison.**
+**Current milestone: Phase 6B — optional selected-synapse evidence workflow.**
 Public data preparation, candidate lookup, minimum-hop and normalized-strength
 paths, provenance-bearing JSON, and real SWC scene exports work. Godot displays
 selected reconstructed neurons with orbit/pan/zoom, selection metadata, real edge
@@ -14,7 +14,9 @@ spatial context with independent source provenance. A small EM slice stack can n
 be inspected around a selected real SWC node. This is morphology-point image
 context, not a verified synapse location. The Intervene tab now compares a baseline
 with neuron/type exclusions, count thresholds and side restrictions. The file-only
-workflow remains available; verified selected-synapse evidence remains pending.
+workflow remains available. A bounded optional CAVE CLI can export selected-edge
+synapses and their EM stacks; its live authenticated BANC validation remains
+pending local credential setup. Godot opens the saved stacks offline.
 
 See [brain/VNC context setup, provenance and screenshot](docs/context.md) for
 `morphology context-fetch`, `scene export --include-context`, and the UI controls.
@@ -22,6 +24,8 @@ See [selected-point EM setup, limits and screenshot](docs/em.md) for the optiona
 `api` + `em` extras, the EM tab, offline image stacks and `em fetch`.
 See [graph intervention setup and example](docs/interventions.md) for the Intervene
 tab, `path intervene`, no-path results and scientific limits.
+See [CAVE setup and selected-synapse workflow](docs/synapses.md) for local credential
+configuration, bounded queries, count mismatches and `em synapse`.
 
 ## Setup (PowerShell)
 

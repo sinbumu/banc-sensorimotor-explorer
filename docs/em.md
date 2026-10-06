@@ -99,7 +99,13 @@ Implementation follows the primary Neuroglancer
 [volume format](https://github.com/google/neuroglancer/blob/master/src/datasource/precomputed/volume.md)
 and [sharding format](https://github.com/google/neuroglancer/blob/master/src/datasource/precomputed/sharded.md).
 
-## Why selected-synapse evidence remains pending
+## Selected-synapse extension and live validation
+
+Phase 6B adds `synapses fetch`, offline subset validation and `em synapse`, plus
+Godot support for schema-2 predicted-synapse stacks. See [setup and scientific
+limits](synapses.md). The file workflow has synthetic integration coverage; a real
+authenticated query remains unverified until local CAVE credentials are configured.
+Morphology stacks retain schema 1 and their original point interpretation.
 
 We inspected only the footer of the official
 `compiled_data/banc_888/banc_888_synapses_v3_enriched.parquet` object. Its observed
@@ -111,8 +117,8 @@ The demo's selected pre/post pair survived min/max pruning in all 1,989 groups.
 Projected ID/pre/post/XYZ columns would still read about **7.76 GB** of compressed
 data. Predicate pushdown alone therefore does not make this specific table a small
 query. That scan was not performed. A public bounded lookup, a separately prepared
-small v3 subset, or an optional verified CAVE provider is needed before associating
-actual synapses with the graph edge. Other detector versions must remain labeled.
+small v3 subset, or live verification of the optional CAVE provider is needed before
+associating real synapses with the graph edge. Other detector versions remain labeled.
 
 ## Verification and limits
 

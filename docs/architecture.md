@@ -91,3 +91,14 @@ hashes, and rejects changed source hashes. No-path outcomes retain a query manif
 Morphology failure does not erase a valid graph comparison. Godot pins an explicit
 baseline and switches independently validated before/after scenes. Rules, source
 versions and objectives stay in Python; see [interventions.md](interventions.md).
+
+## Optional selected-edge evidence
+
+`synapses/transport.py` implements a fixed-host, bounded JSON CAVE reader using
+standard local credentials. `synapses/evidence.py` pins v888, verifies the detector
+and response units, queries one directed pair, and exports a validated subset with
+the source graph. There is no automatic query from graph or API startup. Saved
+bundles validate offline. `em synapse` resolves an exact returned ID to the same
+EM provider; schema-2 manifests carry its independent evidence provenance. Godot
+opens either EM schema and keeps each image labeled with its own point identity.
+Live CAVE verification is pending local setup; see `synapses.md`.

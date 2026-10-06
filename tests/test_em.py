@@ -15,7 +15,7 @@ import pytest
 pytest.importorskip("PIL")
 from PIL import Image
 
-from banc_explorer.em.export import MorphologyPoint, export_roi, load_roi
+from banc_explorer.em.export import MorphologyPoint, SynapsePoint, export_roi, load_roi
 from banc_explorer.em.provider import (
     PublicEmProvider,
     RoiRequest,
@@ -108,6 +108,43 @@ def point():
         center_nm=(1024, 1024, 720),
         skeleton_source=SourceFile(url="synthetic", sha256="a" * 64, bytes=1),
     )
+
+
+def synapse_point():
+    from banc_explorer.synapses.evidence import query_suffix
+    from banc_explorer.synapses.transport import BASE as CAVE_BASE
+
+    return SynapsePoint(
+        connectivity_version="v3",
+        table="synapses_v3",
+        synapse_id="9007199254740993",
+        pre="720575941350568496",
+        post="720575941557376164",
+        center_nm=(1024, 1024, 720),
+        evidence_sha256="a" * 64,
+        path_sha256="b" * 64,
+        query_source=SourceFile(
+            url=CAVE_BASE + query_suffix("synapses_v3"), sha256="c" * 64, bytes=1
+        ),
+    )
+
+
+def test_synapse_roi_roundtrip_schema_and_provenance(tmp_path, em_source):
+    directory = tmp_path / "synapse-roi"
+    exported = export_roi(
+        PublicEmProvider(RangeCache(tmp_path / "cache")),
+        synapse_point(),
+        directory,
+        size_voxels=(10, 12, 8),
+    )
+    assert exported.schema_version == 2 and load_roi(directory) == exported
+    assert exported.point.synapse_id == 9007199254740993
+    data = exported.model_dump(mode="json")
+    data["schema_version"] = 1
+    from banc_explorer.em.export import RoiManifest
+
+    with pytest.raises(ValueError, match="schema/interpretation"):
+        RoiManifest.model_validate(data)
 
 
 def test_morton_asymmetric_grid_and_index_deltas():
@@ -285,13 +322,26 @@ def test_roi_limits_before_download():
     not os.environ.get("GODOT_BIN"), reason="Set GODOT_BIN for EM loader integration"
 )
 @pytest.mark.parametrize(
-    "case", ["valid", "indices", "checksum", "png_dimensions", "schema", "provenance"]
+    "case",
+    [
+        "valid",
+        "indices",
+        "checksum",
+        "png_dimensions",
+        "schema",
+        "provenance",
+        "synapse",
+        "synapse_version",
+        "synapse_hash",
+        "synapse_id",
+        "synapse_source",
+    ],
 )
 def test_godot_em_contract(tmp_path, em_source, case):
     directory = tmp_path / "roi"
     export_roi(
         PublicEmProvider(RangeCache(tmp_path / "cache")),
-        point(),
+        synapse_point() if case.startswith("synapse") else point(),
         directory,
         size_voxels=(10, 12, 8),
     )
@@ -315,6 +365,18 @@ def test_godot_em_contract(tmp_path, em_source, case):
     elif case == "provenance":
         value["image_materialization"] = 888
         expected = "Unsupported EM source"
+    elif case == "synapse_version":
+        value["point"]["table"] = "synapses_v2"
+        expected = "version"
+    elif case == "synapse_hash":
+        value["point"]["evidence_sha256"] = "z" * 64
+        expected = "hashes"
+    elif case == "synapse_id":
+        value["point"]["synapse_id"] = 9007199254740993
+        expected = "provenance"
+    elif case == "synapse_source":
+        value["point"]["query_source"]["url"] = "https://wrong.invalid/query"
+        expected = "source"
     path.write_text(json.dumps(value), encoding="utf-8")
     root = Path(__file__).resolve().parents[1]
     result = subprocess.run(
